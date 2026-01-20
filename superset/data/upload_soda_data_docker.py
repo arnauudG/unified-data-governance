@@ -205,13 +205,22 @@ def cleanup_temp_folder():
     else:
         print(f"ℹ️  Temporary folder {temp_folder} not found (already cleaned up)")
 
-def main():
-    """Main function to upload all Soda dump data"""
+def main(data_dir=None):
+    """Main function to upload all Soda dump data
+    
+    Args:
+        data_dir: Optional path to data directory. Defaults to /app/soda_data (Superset container path)
+    """
     # Check if superset/data directory exists
-    soda_data_dir = Path("/app/soda_data")
+    if data_dir is None:
+        # Default to Superset container path
+        soda_data_dir = Path("/app/soda_data")
+    else:
+        soda_data_dir = Path(data_dir)
+    
     if not soda_data_dir.exists():
-        print("❌ superset/data directory not found!")
-        print("Please ensure the directory is mounted in the container")
+        print(f"❌ Data directory not found: {soda_data_dir}")
+        print("Please ensure the directory exists and contains the Soda data files")
         sys.exit(1)
     
     # Refresh latest data files
@@ -288,4 +297,13 @@ def main():
     print("4. Build dashboards with your data quality insights")
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Upload Soda data to Superset database")
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Path to directory containing Soda data CSV files (default: /app/soda_data)"
+    )
+    args = parser.parse_args()
+    main(data_dir=args.data_dir)
