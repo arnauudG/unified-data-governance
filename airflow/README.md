@@ -38,6 +38,8 @@ airflow/
 
 **Purpose**: Regular data quality monitoring and processing with quality-gated metadata synchronization
 
+**Guardrail Configuration**: RAW layer lenient, MART layer strict
+
 **Orchestration Philosophy: Quality Gates Metadata Sync**
 
 Each layer follows the sequence: **Build → Validate → Govern**
@@ -67,6 +69,38 @@ Quality checks **gate** metadata synchronization. Metadata sync only happens aft
 - **`collibra_sync_quality`**: Collibra metadata sync for QUALITY schema (only after quality passes)
 - **`cleanup_artifacts`**: Clean up temporary files
 
+### 3. Soda Pipeline Run - Strict RAW DAG (`soda_pipeline_run_strict_raw.py`)
+
+**Purpose**: Pipeline with strict quality guardrails for RAW layer
+
+**Guardrail Configuration**: RAW layer strict (pipeline fails if critical checks fail), MART layer lenient
+
+**When to Use**:
+- Early data quality validation
+- Strict source data requirements
+- Production environments where source data quality is critical
+
+**Key Differences from Default Pipeline**:
+- RAW layer: No `|| true` - pipeline fails if checks fail
+- RAW layer: Quality gate validates before Collibra sync
+- MART layer: Lenient mode - continues even if checks fail
+
+### 4. Soda Pipeline Run - Strict MART DAG (`soda_pipeline_run_strict_mart.py`)
+
+**Purpose**: Pipeline with strict quality guardrails for MART layer
+
+**Guardrail Configuration**: RAW layer lenient, MART layer strict (pipeline fails if critical checks fail)
+
+**When to Use**:
+- Production-ready data validation
+- Business-critical analytics
+- Gold layer standards enforcement
+
+**Key Differences from Default Pipeline**:
+- RAW layer: Lenient mode - continues even if checks fail
+- MART layer: No `|| true` - pipeline fails if checks fail
+- MART layer: Quality gate validates before Collibra sync
+
 **Integration Points**:
 - Quality results automatically synchronized to Soda Cloud
 - Quality metrics automatically pushed to Collibra (if configured)
@@ -91,8 +125,14 @@ make airflow-up
 # Initialize data (one-time)
 make airflow-trigger-init
 
-# Run main pipeline
+# Run main pipeline (RAW lenient, MART strict)
 make airflow-trigger-pipeline
+
+# Run pipeline with strict RAW guardrails
+make airflow-trigger-pipeline-strict-raw
+
+# Run pipeline with strict MART guardrails
+make airflow-trigger-pipeline-strict-mart
 ```
 
 ### Check Status

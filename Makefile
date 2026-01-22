@@ -65,6 +65,8 @@ airflow-up: ## Start Airflow services with Docker
 	@echo "▶️  Unpausing all Soda DAGs..."
 	@docker exec soda-airflow-webserver airflow dags unpause soda_initialization || true
 	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run || true
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_raw || true
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_mart || true
 	@echo "[OK] Airflow services started with Docker"
 	@echo "[INFO] Web UI: http://localhost:8080 (admin/admin)"
 	@echo "[INFO] Available DAGs:"
@@ -94,6 +96,8 @@ all-up: ## Start all services (Airflow + Superset)
 	@echo "▶️  Unpausing all Soda DAGs..."
 	@docker exec soda-airflow-webserver airflow dags unpause soda_initialization || true
 	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run || true
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_raw || true
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_mart || true
 	@echo "[OK] All services started with Docker"
 	@echo "[INFO] Airflow UI: http://localhost:8080 (admin/admin)"
 	@echo "[INFO] Superset UI: http://localhost:8089 (admin/admin)"
@@ -183,12 +187,16 @@ airflow-unpause-all: ## Unpause all Soda DAGs
 	@echo "▶️  Unpausing all Soda DAGs..."
 	@docker exec soda-airflow-webserver airflow dags unpause soda_initialization
 	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_raw || true
+	@docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_mart || true
 	@echo "[OK] All Soda DAGs unpaused"
 
 airflow-pause-all: ## Pause all Soda DAGs
 	@echo "⏸️  Pausing all Soda DAGs..."
 	@docker exec soda-airflow-webserver airflow dags pause soda_initialization
 	@docker exec soda-airflow-webserver airflow dags pause soda_pipeline_run
+	@docker exec soda-airflow-webserver airflow dags pause soda_pipeline_run_strict_raw || true
+	@docker exec soda-airflow-webserver airflow dags pause soda_pipeline_run_strict_mart || true
 	@echo "[OK] All Soda DAGs paused"
 
 airflow-rebuild: ## Rebuild Airflow containers
@@ -212,6 +220,24 @@ airflow-trigger-pipeline: ## Trigger layered pipeline DAG (layer-by-layer proces
 	@docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run
 	@echo "[OK] Layered pipeline DAG triggered"
 	@echo "[INFO] Check progress at: http://localhost:8080"
+
+airflow-trigger-pipeline-strict-raw: ## Trigger pipeline with strict RAW layer guardrails (pipeline fails if RAW checks fail)
+	@echo "🔄 Ensuring Soda data source names are up to date..."
+	@bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+	@echo "🔄 Triggering strict RAW pipeline DAG..."
+	@docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_raw
+	@echo "[OK] Strict RAW pipeline DAG triggered"
+	@echo "[INFO] Check progress at: http://localhost:8080"
+	@echo "[INFO] This pipeline will FAIL if RAW layer critical checks fail"
+
+airflow-trigger-pipeline-strict-mart: ## Trigger pipeline with strict MART layer guardrails (pipeline fails if MART checks fail)
+	@echo "🔄 Ensuring Soda data source names are up to date..."
+	@bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+	@echo "🔄 Triggering strict MART pipeline DAG..."
+	@docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_mart
+	@echo "[OK] Strict MART pipeline DAG triggered"
+	@echo "[INFO] Check progress at: http://localhost:8080"
+	@echo "[INFO] This pipeline will FAIL if MART layer critical checks fail"
 
 soda-dump: ## Extract Soda Cloud data to CSV files
 	@echo "📊 Extracting Soda Cloud data..."

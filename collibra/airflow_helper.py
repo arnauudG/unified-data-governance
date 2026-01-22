@@ -46,6 +46,7 @@ collibra_vars = {
 logger.info(f"Collibra environment variables status: {collibra_vars}")
 
 from collibra.metadata_sync import CollibraMetadataSync
+from collibra.soda_quality_check import validate_quality_before_sync
 
 
 def load_config():
@@ -83,9 +84,30 @@ def get_database_connection_id(config: dict, sync_client: CollibraMetadataSync) 
 
 
 def sync_raw_metadata(**context):
-    """Airflow task function to sync RAW layer metadata."""
-    logger.info("Starting Collibra metadata sync for RAW layer")
+    """Airflow task function to sync RAW layer metadata (lenient mode)."""
+    logger.info("Starting Collibra metadata sync for RAW layer (lenient mode)")
     
+    # Note: RAW layer is lenient - no quality gate validation
+    # Quality checks run but don't block sync (|| true in scan task)
+    
+    return _sync_raw_metadata_internal(**context)
+
+
+def sync_raw_metadata_strict(**context):
+    """Airflow task function to sync RAW layer metadata (strict mode with quality gate)."""
+    logger.info("Starting Collibra metadata sync for RAW layer (strict mode)")
+    
+    # Validate quality before syncing (strict mode)
+    if not validate_quality_before_sync('raw'):
+        error_msg = "Quality gate failed: Critical checks failed in RAW layer. Skipping metadata sync."
+        logger.error(error_msg)
+        raise Exception(error_msg)
+    
+    return _sync_raw_metadata_internal(**context)
+
+
+def _sync_raw_metadata_internal(**context):
+    """Internal function to sync RAW layer metadata."""
     # Verify environment variables are loaded
     collibra_vars_check = {
         'COLLIBRA_BASE_URL': 'SET' if os.getenv('COLLIBRA_BASE_URL') else 'NOT SET',
@@ -165,9 +187,30 @@ def sync_staging_metadata(**context):
 
 
 def sync_mart_metadata(**context):
-    """Airflow task function to sync MART layer metadata."""
-    logger.info("Starting Collibra metadata sync for MART layer")
+    """Airflow task function to sync MART layer metadata (strict mode with quality gate)."""
+    logger.info("Starting Collibra metadata sync for MART layer (strict mode)")
     
+    # Validate quality before syncing (strict mode)
+    if not validate_quality_before_sync('mart'):
+        error_msg = "Quality gate failed: Critical checks failed in MART layer. Skipping metadata sync."
+        logger.error(error_msg)
+        raise Exception(error_msg)
+    
+    return _sync_mart_metadata_internal(**context)
+
+
+def sync_mart_metadata_lenient(**context):
+    """Airflow task function to sync MART layer metadata (lenient mode)."""
+    logger.info("Starting Collibra metadata sync for MART layer (lenient mode)")
+    
+    # Note: MART layer is lenient - no quality gate validation
+    # Quality checks run but don't block sync (|| true in scan task)
+    
+    return _sync_mart_metadata_internal(**context)
+
+
+def _sync_mart_metadata_internal(**context):
+    """Internal function to sync MART layer metadata."""
     try:
         config = load_config()
         database_id = config['database_id']

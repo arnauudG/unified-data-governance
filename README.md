@@ -84,6 +84,285 @@ Each layer follows: **Build → Validate → Govern**
 - This ensures Collibra reflects **commitments**, not **aspirations**
 - Collibra becomes a historical record of accepted states
 
+## Architecture Diagrams
+
+### System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Orchestration Layer"
+        AF[Apache Airflow<br/>Workflow Orchestration]
+    end
+    
+    subgraph "Data Warehouse"
+        SF[Snowflake<br/>Data Warehouse]
+        RAW[RAW Schema<br/>Source Data]
+        STG[STAGING Schema<br/>Cleaned Data]
+        MART[MART Schema<br/>Business-Ready Data]
+        QLT[QUALITY Schema<br/>Quality Metrics]
+    end
+    
+    subgraph "Data Engineering"
+        DBT[dbt Core<br/>Transformations]
+    end
+    
+    subgraph "Data Quality"
+        SODA[Soda Library<br/>Quality Checks]
+        SC[Soda Cloud<br/>Quality Dashboard]
+    end
+    
+    subgraph "Data Governance"
+        COL[Collibra DIC<br/>Governance Catalog]
+        META[Metadata Sync<br/>Schema & Tables]
+        QUAL[Quality Metrics<br/>Check Results]
+    end
+    
+    subgraph "Visualization"
+        SUP[Apache Superset<br/>Quality Dashboards]
+    end
+    
+    AF -->|Orchestrates| DBT
+    AF -->|Triggers| SODA
+    AF -->|Manages| COL
+    
+    DBT -->|Transforms| RAW
+    DBT -->|Creates| STG
+    DBT -->|Builds| MART
+    
+    SODA -->|Validates| RAW
+    SODA -->|Validates| STG
+    SODA -->|Validates| MART
+    SODA -->|Sends Results| SC
+    SODA -->|Pushes Metrics| COL
+    
+    AF -->|Syncs Metadata| META
+    META -->|Updates| COL
+    QUAL -->|Enriches| COL
+    
+    SC -->|Extracts Data| SUP
+    COL -->|Provides Context| SUP
+    
+    style AF fill:#e1f5ff
+    style SF fill:#29b5e8
+    style SODA fill:#ff6b6b
+    style COL fill:#4ecdc4
+    style SUP fill:#ffe66d
+```
+
+### Data Product Lifecycle
+
+```mermaid
+graph LR
+    subgraph "Phase 1: Source Data"
+        SRC[Source Systems<br/>External Data]
+        RAW[RAW Layer<br/>Raw Data Ingestion]
+    end
+    
+    subgraph "Phase 2: Transformation"
+        STG[STAGING Layer<br/>Data Cleaning<br/>& Standardization]
+        MART[MART Layer<br/>Business Logic<br/>& Aggregation]
+    end
+    
+    subgraph "Phase 3: Quality Assurance"
+        QLT[Quality Checks<br/>Validation & Monitoring]
+        GATE{Quality Gate<br/>Pass/Fail}
+    end
+    
+    subgraph "Phase 4: Governance"
+        GOV[Collibra Catalog<br/>Metadata & Lineage]
+        DISCO[Data Discovery<br/>& Consumption]
+    end
+    
+    SRC -->|Ingest| RAW
+    RAW -->|Transform| STG
+    STG -->|Enrich| MART
+    MART -->|Validate| QLT
+    QLT -->|Decision| GATE
+    GATE -->|Pass| GOV
+    GATE -->|Fail| RAW
+    GOV -->|Discover| DISCO
+    
+    style RAW fill:#ffcccc
+    style STG fill:#ffffcc
+    style MART fill:#ccffcc
+    style GATE fill:#ff9999
+    style GOV fill:#ccccff
+```
+
+### Quality-Gated Pipeline Flow
+
+```mermaid
+graph TD
+    START([Pipeline Start]) --> RAW_START[RAW Layer Start]
+    
+    RAW_START --> RAW_SCAN[Soda Scan RAW<br/>Quality Checks]
+    RAW_SCAN --> RAW_GATE{Quality Gate<br/>Critical Checks Pass?}
+    
+    RAW_GATE -->|Pass| RAW_SYNC[Collibra Sync RAW<br/>Metadata Update]
+    RAW_GATE -->|Fail| RAW_FAIL[Pipeline Fails<br/>or Continues<br/>Based on Config]
+    
+    RAW_SYNC --> STG_START[STAGING Layer Start]
+    RAW_FAIL --> END_FAIL([Pipeline Failed])
+    
+    STG_START --> STG_BUILD[dbt Build STAGING<br/>Transformations]
+    STG_BUILD --> STG_SCAN[Soda Scan STAGING<br/>Quality Checks]
+    STG_SCAN --> STG_SYNC[Collibra Sync STAGING<br/>Metadata Update]
+    
+    STG_SYNC --> MART_START[MART Layer Start]
+    
+    MART_START --> MART_BUILD[dbt Build MART<br/>Business Models]
+    MART_BUILD --> MART_SCAN[Soda Scan MART<br/>Quality Checks]
+    MART_SCAN --> MART_GATE{Quality Gate<br/>Critical Checks Pass?}
+    
+    MART_GATE -->|Pass| MART_SYNC[Collibra Sync MART<br/>Metadata Update]
+    MART_GATE -->|Fail| MART_FAIL[Pipeline Fails<br/>or Continues<br/>Based on Config]
+    
+    MART_SYNC --> QLT_START[QUALITY Layer Start]
+    MART_FAIL --> END_FAIL
+    
+    QLT_START --> QLT_SCAN[Soda Scan QUALITY<br/>Monitoring]
+    QLT_SCAN --> DBT_TEST[dbt Tests<br/>Data Validation]
+    DBT_TEST --> QLT_SYNC[Collibra Sync QUALITY<br/>Metadata Update]
+    
+    QLT_SYNC --> CLEANUP[Cleanup Artifacts]
+    CLEANUP --> SUP_UPLOAD[Superset Upload<br/>Visualization Data]
+    SUP_UPLOAD --> END_SUCCESS([Pipeline Success])
+    
+    style RAW_GATE fill:#ffcccc
+    style MART_GATE fill:#ffcccc
+    style RAW_FAIL fill:#ff6666
+    style MART_FAIL fill:#ff6666
+    style END_FAIL fill:#ff0000
+    style END_SUCCESS fill:#00ff00
+```
+
+### Integration Flow: Soda → Collibra → Superset
+
+```mermaid
+sequenceDiagram
+    participant AF as Airflow
+    participant SF as Snowflake
+    participant SODA as Soda Library
+    participant SC as Soda Cloud
+    participant COL as Collibra
+    participant SUP as Superset
+    
+    AF->>SF: Execute dbt Models
+    SF-->>AF: Models Created
+    
+    AF->>SODA: Trigger Quality Scan
+    SODA->>SF: Run Quality Checks
+    SF-->>SODA: Check Results
+    
+    SODA->>SC: Push Results to Cloud
+    SC-->>SODA: Confirmation
+    
+    SODA->>AF: Return Scan Status
+    
+    alt Quality Gate Passes
+        AF->>COL: Sync Quality Metrics
+        COL-->>AF: Metrics Linked to Assets
+        
+        AF->>COL: Trigger Metadata Sync
+        COL->>SF: Discover Schema Changes
+        SF-->>COL: Schema & Table Metadata
+        COL-->>AF: Sync Triggered
+        
+        AF->>SC: Extract Quality Data
+        SC-->>AF: Quality Metrics & Results
+        
+        AF->>SUP: Upload Quality Data
+        SUP-->>AF: Data Available for Dashboards
+    else Quality Gate Fails
+        AF->>AF: Pipeline Fails/Continues<br/>(Based on Config)
+        AF->>COL: Skip Metadata Sync
+    end
+```
+
+### Layer-by-Layer Quality Standards
+
+```mermaid
+graph TB
+    subgraph "RAW Layer - Lenient Standards"
+        RAW_IN[Source Data]
+        RAW_CHK[Basic Quality Checks<br/>Schema, Completeness]
+        RAW_OUT[Raw Data Available]
+    end
+    
+    subgraph "STAGING Layer - Moderate Standards"
+        STG_IN[Raw Data]
+        STG_TRANS[dbt Transformations<br/>Cleaning & Standardization]
+        STG_CHK[Enhanced Quality Checks<br/>Business Rules, Validity]
+        STG_OUT[Cleaned Data Available]
+    end
+    
+    subgraph "MART Layer - Strict Standards"
+        MART_IN[Cleaned Data]
+        MART_TRANS[dbt Business Logic<br/>Aggregations & Metrics]
+        MART_CHK[Strict Quality Checks<br/>Referential Integrity,<br/>Business Logic]
+        MART_OUT[Business-Ready Data]
+    end
+    
+    subgraph "Quality Layer - Monitoring"
+        QLT_MON[Quality Monitoring<br/>Cross-Layer Validation]
+        QLT_DASH[Dashboards & Reports]
+    end
+    
+    RAW_IN --> RAW_CHK
+    RAW_CHK --> RAW_OUT
+    RAW_OUT --> STG_IN
+    
+    STG_IN --> STG_TRANS
+    STG_TRANS --> STG_CHK
+    STG_CHK --> STG_OUT
+    STG_OUT --> MART_IN
+    
+    MART_IN --> MART_TRANS
+    MART_TRANS --> MART_CHK
+    MART_CHK --> MART_OUT
+    
+    RAW_CHK --> QLT_MON
+    STG_CHK --> QLT_MON
+    MART_CHK --> QLT_MON
+    QLT_MON --> QLT_DASH
+    
+    style RAW_CHK fill:#ffe6e6
+    style STG_CHK fill:#fff4e6
+    style MART_CHK fill:#e6ffe6
+    style QLT_MON fill:#e6f3ff
+```
+
+### Pipeline Guardrail Configurations
+
+```mermaid
+graph LR
+    subgraph "Default Pipeline<br/>soda_pipeline_run"
+        D1[RAW: Lenient<br/>Continues on Fail]
+        D2[MART: Strict<br/>Fails on Critical]
+    end
+    
+    subgraph "Strict RAW Pipeline<br/>soda_pipeline_run_strict_raw"
+        S1[RAW: Strict<br/>Fails on Critical]
+        S2[MART: Lenient<br/>Continues on Fail]
+    end
+    
+    subgraph "Strict MART Pipeline<br/>soda_pipeline_run_strict_mart"
+        M1[RAW: Lenient<br/>Continues on Fail]
+        M2[MART: Strict<br/>Fails on Critical]
+    end
+    
+    D1 --> D2
+    S1 --> S2
+    M1 --> M2
+    
+    style D1 fill:#ffe6e6
+    style D2 fill:#e6ffe6
+    style S1 fill:#ffcccc
+    style S2 fill:#ffe6e6
+    style M1 fill:#ffe6e6
+    style M2 fill:#ffcccc
+```
+
 ## Key Integrations
 
 ### Data Engineering Integration
@@ -411,6 +690,32 @@ All Soda checks are standardized with six data quality dimensions:
 
 All checks include an `attributes` section with the appropriate `dimension` field for proper categorization in Soda Cloud, Collibra, and reporting tools.
 
+## Pipeline Guardrail Configurations
+
+The platform provides three pipeline configurations with different quality guardrail settings:
+
+| Pipeline | RAW Layer | MART Layer | Use Case |
+|----------|-----------|------------|----------|
+| `soda_pipeline_run` (default) | **Lenient** - Continues on failures | **Strict** - Fails on critical checks | Standard production pipeline |
+| `soda_pipeline_run_strict_raw` | **Strict** - Fails on critical checks | **Lenient** - Continues on failures | Early source data validation |
+| `soda_pipeline_run_strict_mart` | **Lenient** - Continues on failures | **Strict** - Fails on critical checks | Gold layer quality enforcement |
+
+**Guardrail Behavior**:
+- **Strict Mode**: Pipeline fails if critical checks fail; quality gate validates before Collibra sync
+- **Lenient Mode**: Pipeline continues even if checks fail; no quality gate validation
+
+**Triggering Pipelines**:
+```bash
+# Default pipeline (RAW lenient, MART strict)
+make airflow-trigger-pipeline
+
+# Strict RAW guardrails
+make airflow-trigger-pipeline-strict-raw
+
+# Strict MART guardrails
+make airflow-trigger-pipeline-strict-mart
+```
+
 ## Quality Checks by Layer
 
 ### RAW Layer (4 tables)
@@ -450,9 +755,21 @@ make superset-status        # Check Superset status
 
 ### Pipeline Execution
 ```bash
-make airflow-trigger-init   # Initialize data
-make airflow-trigger-pipeline # Run complete pipeline (includes automatic Superset upload)
+make airflow-trigger-init              # Initialize data
+make airflow-trigger-pipeline          # Run complete pipeline (RAW lenient, MART strict)
+make airflow-trigger-pipeline-strict-raw   # Run pipeline with strict RAW guardrails (pipeline fails if RAW checks fail)
+make airflow-trigger-pipeline-strict-mart  # Run pipeline with strict MART guardrails (pipeline fails if MART checks fail)
 ```
+
+**Pipeline Guardrail Configurations**:
+- **`soda_pipeline_run`** (default): RAW layer lenient, MART layer strict
+- **`soda_pipeline_run_strict_raw`**: RAW layer strict (fails on critical checks), MART layer lenient
+- **`soda_pipeline_run_strict_mart`**: RAW layer lenient, MART layer strict (fails on critical checks)
+
+**Pipeline Guardrail Configurations**:
+- **`soda_pipeline_run`** (default): RAW layer lenient, MART layer strict
+- **`soda_pipeline_run_strict_raw`**: RAW layer strict (fails on critical checks), MART layer lenient
+- **`soda_pipeline_run_strict_mart`**: RAW layer lenient, MART layer strict (fails on critical checks)
 
 **Note**: The pipeline automatically uploads data to Superset after completion. Ensure Superset is running (`make superset-up`) before triggering the pipeline.
 

@@ -351,85 +351,35 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-# Pipeline Run DAG - Regular Data Processing
+# Pipeline Run DAG - Strict MART Layer Guardrails
 with DAG(
-    dag_id="soda_pipeline_run",
+    dag_id="soda_pipeline_run_strict_mart",
     default_args=default_args,
-    description="Soda Pipeline Run: Regular data processing and quality monitoring",
+    description="Soda Pipeline Run: Strict MART layer guardrails - pipeline fails if MART checks fail",
     schedule_interval=None,  # Manual trigger only
     catchup=False,
-    tags=["soda", "dbt", "data-quality", "pipeline", "regular"],
+    tags=["soda", "dbt", "data-quality", "pipeline", "strict-mart"],
     doc_md="""
-    # Soda Pipeline Run DAG - Quality-Gated Metadata Sync
+    # Soda Pipeline Run DAG - Strict MART Layer Guardrails
     
-    This DAG implements **quality-gated metadata synchronization** where quality checks
-    gate metadata sync operations. Collibra only syncs data that has passed quality
-    validation, ensuring the catalog reflects commitments, not aspirations.
+    This DAG implements **strict quality guardrails for the MART layer** where the pipeline
+    will fail if MART layer quality checks fail. The RAW layer is lenient (non-blocking).
     
-    ## Orchestration Philosophy
+    ## Guardrail Configuration
     
-    Each layer follows the sequence: **Build → Validate → Govern**
-    
-    - **dbt build** → "this model exists"
-    - **Soda checks** → "this model is acceptable"  
-    - **Collibra sync** → "this model is governable and discoverable"
-    
-    Quality checks **gate** metadata synchronization. Metadata sync only happens after
-    quality validation, ensuring Collibra becomes a historical record of accepted states,
-    not a live mirror of Snowflake's chaos.
-    
-    ## What This DAG Does
-    
-    - **RAW Layer**: Quality checks → Metadata sync (gated)
-    - **STAGING Layer**: Build → Quality checks → Metadata sync (gated)
-    - **MART Layer**: Build → Quality checks → Metadata sync (gated, strictest standards)
-    - **QUALITY Layer**: Final validation + dbt tests
-    - **Sends results to Soda Cloud** for monitoring
-    - **Synchronizes metadata to Collibra** only for validated data
-    - **Cleans up artifacts** and temporary files
-    
-    ## Layered Processing Flow
-    
-    1. **RAW Layer**: Quality checks → Metadata sync (gated by quality)
-    2. **STAGING Layer**: Transform data → Quality checks → Metadata sync (gated)
-    3. **MART Layer**: Business logic → Quality checks → Metadata sync (gated, strictest)
-    4. **QUALITY Layer**: Final validation + dbt tests
-    
-    ## Quality Gating Benefits
-    
-    - **Collibra reflects commitments**: Only validated data enters governance
-    - **Lineage reflects approved flows**: Historical record of accepted states
-    - **Ownership discussions on validated assets**: Governance happens on trusted data
-    - **No retroactive corrections needed**: Catalog stays clean and meaningful
-    
-    ## Advanced Features
-    
-    - **Soda Library**: Full template support with advanced analytics
-    - **Template Checks**: Statistical analysis, anomaly detection, business logic validation
-    - **Enhanced Monitoring**: Data distribution analysis and trend monitoring
-    - **Quality-Gated Sync**: Metadata sync only after quality validation
+    - **RAW Layer**: **LENIENT** - Pipeline continues even if checks fail, no quality gate
+    - **MART Layer**: **STRICT** - Pipeline fails if critical checks fail, quality gate validates before sync
     
     ## When to Use
     
-    - ✅ **Daily/weekly pipeline runs**
-    - ✅ **Regular data processing**
-    - ✅ **Scheduled execution**
-    - ✅ **After initialization is complete**
+    - ✅ **Production-ready data validation** - Ensure only high-quality data reaches consumers
+    - ✅ **Business-critical analytics** - Where MART layer quality is paramount
+    - ✅ **Gold layer standards** - Strictest quality requirements for final data products
     
-    ## Prerequisites
+    ## Quality Gating
     
-    - ⚠️ **Must run `soda_initialization` first** (one-time setup)
-    - ⚠️ **Snowflake must be initialized** with sample data
-    - ⚠️ **Environment variables must be configured**
-    - ⚠️ **Collibra configuration** in `collibra/config.yml`
-    
-    ## Layer Tasks
-    
-    - **Layer 1**: `soda_scan_raw` → `collibra_sync_raw` (quality gates sync)
-    - **Layer 2**: `dbt_run_staging` → `soda_scan_staging` → `collibra_sync_staging` (gated)
-    - **Layer 3**: `dbt_run_mart` → `soda_scan_mart` → `collibra_sync_mart` (gated, strictest)
-    - **Layer 4**: `soda_scan_quality` + `dbt_test` → `collibra_sync_quality` (gated)
-    - **cleanup**: Clean up temporary artifacts
+    MART layer quality checks gate metadata synchronization. Collibra only syncs data that
+    has passed quality validation, ensuring the catalog reflects commitments, not aspirations.
     """,
 ):
 
@@ -439,27 +389,16 @@ with DAG(
     
     pipeline_start = EmptyOperator(
         task_id="pipeline_start",
-        doc_md="🔄 Starting layered pipeline execution"
+        doc_md="🔄 Starting layered pipeline execution (Strict MART)"
     )
 
     # =============================================================================
-    # LAYER 1: RAW DATA + RAW CHECKS
+    # LAYER 1: RAW DATA + RAW CHECKS (LENIENT)
     # =============================================================================
-    # 
-    # Orchestration Philosophy: Quality Gates Metadata Sync
-    # 
-    # Each layer follows the sequence: Build → Validate → Govern
-    # - dbt build → "this model exists"
-    # - Soda checks → "this model is acceptable"
-    # - Collibra sync → "this model is governable and discoverable"
-    #
-    # Quality checks gate metadata synchronization. Collibra only syncs data that
-    # has passed quality validation, ensuring the catalog reflects commitments,
-    # not aspirations. This makes Collibra a historical record of accepted states.
     
     raw_layer_start = EmptyOperator(
         task_id="raw_layer_start",
-        doc_md="Starting RAW layer processing"
+        doc_md="Starting RAW layer processing (LENIENT MODE)"
     )
 
     # Get data source names dynamically from database name
@@ -472,9 +411,10 @@ with DAG(
         task_id="soda_scan_raw",
         bash_command=BASH_PREFIX + f"soda scan -d {data_source_raw} -c soda/configuration/configuration_raw.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/raw || true",
         doc_md="""
-        **RAW Layer Quality Checks - Quality Gate**
+        **RAW Layer Quality Checks - LENIENT MODE**
         
         - Initial data quality assessment
+        - **LENIENT**: Pipeline continues even if checks fail
         - Relaxed thresholds for source data
         - Identifies data issues before transformation
         - Includes all raw tables: customers, products, orders, order_items
@@ -484,7 +424,7 @@ with DAG(
     )
 
     def sync_raw_metadata_task(**context):
-        """Wrapper function to import and call Collibra sync for RAW layer."""
+        """Wrapper function to import and call Collibra sync for RAW layer (lenient mode)."""
         from collibra.airflow_helper import sync_raw_metadata
         return sync_raw_metadata(**context)
     
@@ -492,7 +432,7 @@ with DAG(
         task_id="collibra_sync_raw",
         python_callable=sync_raw_metadata_task,
         doc_md="""
-        **Collibra Metadata Sync - RAW Layer (Gated by Quality)**
+        **Collibra Metadata Sync - RAW Layer (Lenient Mode)**
         
         - **Only executes after quality checks pass**
         - Triggers metadata synchronization in Collibra for RAW schema
@@ -503,15 +443,12 @@ with DAG(
 
     raw_layer_end = EmptyOperator(
         task_id="raw_layer_end",
-        doc_md="✅ RAW layer processing completed"
+        doc_md="✅ RAW layer processing completed (LENIENT MODE)"
     )
 
     # =============================================================================
     # LAYER 2: STAGING MODELS + STAGING CHECKS
     # =============================================================================
-    # 
-    # Sequence: Build → Validate → Govern
-    # Quality checks gate metadata sync to ensure only acceptable data enters governance
     
     staging_layer_start = EmptyOperator(
         task_id="staging_layer_start",
@@ -571,16 +508,12 @@ with DAG(
     )
 
     # =============================================================================
-    # LAYER 3: MART MODELS + MART CHECKS
+    # LAYER 3: MART MODELS + MART CHECKS (STRICT)
     # =============================================================================
-    # 
-    # Sequence: Build → Validate → Govern
-    # Strictest quality standards for business-ready data
-    # Metadata sync is a badge of trust for Gold layer
     
     mart_layer_start = EmptyOperator(
         task_id="mart_layer_start",
-        doc_md="Starting MART layer processing"
+        doc_md="Starting MART layer processing (STRICT MODE)"
     )
 
     dbt_run_mart = BashOperator(
@@ -601,7 +534,7 @@ with DAG(
         task_id="soda_scan_mart",
         bash_command=BASH_PREFIX + f"soda scan -d {data_source_mart} -c soda/configuration/configuration_mart.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/mart",
         doc_md="""
-        **MART Layer Quality Checks - Validation Phase**
+        **MART Layer Quality Checks - STRICT MODE**
         
         - Strictest quality thresholds
         - Ensures business-ready data quality
@@ -613,7 +546,7 @@ with DAG(
     )
 
     def sync_mart_metadata_task(**context):
-        """Wrapper function to import and call Collibra sync for MART layer."""
+        """Wrapper function to import and call Collibra sync for MART layer (strict mode)."""
         from collibra.airflow_helper import sync_mart_metadata
         return sync_mart_metadata(**context)
     
@@ -621,9 +554,10 @@ with DAG(
         task_id="collibra_sync_mart",
         python_callable=sync_mart_metadata_task,
         doc_md="""
-        **Collibra Metadata Sync - MART Layer (Gated by Quality)**
+        **Collibra Metadata Sync - MART Layer (Strict Quality Gate)**
         
         - **Only executes after quality checks pass**
+        - **Quality gate validates critical checks before sync**
         - Triggers metadata synchronization in Collibra for MART schema
         - Updates Collibra catalog with validated MART layer metadata
         - **Phase 3**: Sync only production-ready, validated data
@@ -634,7 +568,7 @@ with DAG(
 
     mart_layer_end = EmptyOperator(
         task_id="mart_layer_end",
-        doc_md="✅ MART layer processing completed"
+        doc_md="✅ MART layer processing completed (STRICT MODE)"
     )
 
     # =============================================================================
@@ -743,30 +677,14 @@ with DAG(
     # =============================================================================
     # TASK DEPENDENCIES - QUALITY-GATED METADATA SYNC
     # =============================================================================
-    #
-    # Orchestration Philosophy: Quality Gates Metadata Sync
-    #
-    # Each layer follows: Build → Validate → Govern
-    # - Quality checks MUST complete before metadata sync
-    # - This ensures Collibra only contains validated, committed data
-    # - Collibra becomes a historical record of accepted states
-    #
-    # Parallelism is fine WITHIN a phase (e.g., multiple dbt models, multiple checks)
-    # But phase transitions stay sequential to maintain semantic clarity
-    #
-    # Layer Sequencing:
-    # RAW:    Quality Check → Metadata Sync (gated)
-    # STAGING: Build → Quality Check → Metadata Sync (gated)
-    # MART:   Build → Quality Check → Metadata Sync (gated)
-    # QUALITY: Quality Check + Tests → Metadata Sync (gated)
     
-    # RAW Layer: Quality gates metadata sync
+    # RAW Layer: Quality gates metadata sync (LENIENT)
     pipeline_start >> raw_layer_start >> soda_scan_raw >> collibra_sync_raw >> raw_layer_end
     
     # STAGING Layer: Build → Validate → Govern
     raw_layer_end >> staging_layer_start >> dbt_run_staging >> soda_scan_staging >> collibra_sync_staging >> staging_layer_end
     
-    # MART Layer: Build → Validate → Govern (strictest standards)
+    # MART Layer: Build → Validate → Govern (STRICT)
     staging_layer_end >> mart_layer_start >> dbt_run_mart >> soda_scan_mart >> collibra_sync_mart >> mart_layer_end
     
     # Quality Layer: Final monitoring → Metadata sync (gated)
