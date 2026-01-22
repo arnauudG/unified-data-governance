@@ -462,7 +462,7 @@ The platform provides three pipeline configurations with different quality guard
 
 | Pipeline | RAW Layer | MART Layer | Use Case |
 |----------|-----------|------------|----------|
-| `soda_pipeline_run` (default) | **Lenient** - Continues on failures | **Strict** - Fails on critical checks | Standard production pipeline |
+| `soda_pipeline_run` (default) | **Lenient** - Continues on failures | **Lenient** - Continues on failures | Standard production pipeline |
 | `soda_pipeline_run_strict_raw` | **Strict** - Fails on critical checks | **Lenient** - Continues on failures | Early source data validation |
 | `soda_pipeline_run_strict_mart` | **Lenient** - Continues on failures | **Strict** - Fails on critical checks | Gold layer quality enforcement |
 
@@ -472,7 +472,7 @@ The platform provides three pipeline configurations with different quality guard
 
 **Triggering Pipelines**:
 ```bash
-# Default pipeline (RAW lenient, MART strict)
+# Default pipeline (RAW lenient, MART lenient)
 make airflow-trigger-pipeline
 
 # Strict RAW guardrails
@@ -528,12 +528,7 @@ make airflow-trigger-pipeline-strict-mart  # Run pipeline with strict MART guard
 ```
 
 **Pipeline Guardrail Configurations**:
-- **`soda_pipeline_run`** (default): RAW layer lenient, MART layer strict
-- **`soda_pipeline_run_strict_raw`**: RAW layer strict (fails on critical checks), MART layer lenient
-- **`soda_pipeline_run_strict_mart`**: RAW layer lenient, MART layer strict (fails on critical checks)
-
-**Pipeline Guardrail Configurations**:
-- **`soda_pipeline_run`** (default): RAW layer lenient, MART layer strict
+- **`soda_pipeline_run`** (default): RAW layer lenient, MART layer lenient
 - **`soda_pipeline_run_strict_raw`**: RAW layer strict (fails on critical checks), MART layer lenient
 - **`soda_pipeline_run_strict_mart`**: RAW layer lenient, MART layer strict (fails on critical checks)
 

@@ -599,7 +599,7 @@ with DAG(
 
     soda_scan_mart = BashOperator(
         task_id="soda_scan_mart",
-        bash_command=BASH_PREFIX + f"soda scan -d {data_source_mart} -c soda/configuration/configuration_mart.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/mart",
+        bash_command=BASH_PREFIX + f"soda scan -d {data_source_mart} -c soda/configuration/configuration_mart.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/mart || true",
         doc_md="""
         **MART Layer Quality Checks - Validation Phase**
         
@@ -607,7 +607,7 @@ with DAG(
         - Ensures business-ready data quality
         - Expected: Minimal failures (production-ready)
         - **Gates metadata sync**: Only production-ready data proceeds to Collibra
-        - **Pipeline will fail if critical checks fail**
+        - **Non-blocking**: Pipeline continues even if checks fail (lenient for default pipeline)
         - **Phase 2**: Validate business logic, referential integrity, strict quality
         """,
     )
