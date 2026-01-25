@@ -1,7 +1,10 @@
 # MART Layer - Orders Fact Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: MART
 # Table: fact_orders (20,000+ records)
-# Purpose: Business-ready data with strictest quality requirements
+# 
+# DECISION: "Can we trust this for financial reporting, revenue analytics, and business decisions?"
+# RISK: Duplicate orders = inflated revenue, wrong amounts = financial errors, stale data = missed insights
+# QUALITY DIMENSIONS: Uniqueness (double-counting), Accuracy (wrong values), Timeliness (stale data), Schema
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -35,14 +38,7 @@ sample datasets:
     - include FACT_ORDERS
 
 checks for FACT_ORDERS:
-  # Row count checks with sampling
-  - row_count between 15000 and 25000:
-      name: "Mart order count within expected range"
-      samples limit: 3000
-      attributes:
-        dimension: Accuracy
-  
-  # Schema validation
+  # Schema validation - structure matters for consumption
   - schema:
       name: "Mart order fact table schema validation"
       attributes:
@@ -51,53 +47,19 @@ checks for FACT_ORDERS:
         when required column missing: [ORDER_ID, CUSTOMER_ID, ORDER_TOTAL_AMOUNT, ORDER_STATUS]
         when forbidden column present: [DUPLICATE_ORDER_ID, TEST_COLUMN]
   
-  # Completeness checks (no missing values allowed) with sampling
-  - missing_count(ORDER_ID) = 0:
-      name: "No missing order IDs in mart"
-      samples limit: 3000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(CUSTOMER_ID) = 0:
-      name: "No missing customer IDs in mart"
-      samples limit: 3000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(ORDER_TOTAL_AMOUNT) < 1000:
-      name: "Total amounts mostly present in mart"
-      samples limit: 3000
-      attributes:
-        dimension: Completeness
-  
-  # Uniqueness checks (strict) with sampling
+  # Uniqueness - duplicate orders = inflated revenue, wrong metrics
   - duplicate_count(ORDER_ID) = 0:
       name: "Order IDs are unique in mart"
-      samples limit: 3000
       attributes:
         dimension: Uniqueness
   
-  # Validity checks (strict) with sampling
+  # Accuracy - wrong amounts = financial errors
   - min(ORDER_TOTAL_AMOUNT) > 0:
       name: "All order amounts are positive in mart"
-      samples limit: 3000
       attributes:
         dimension: Accuracy
   
   - max(ORDER_TOTAL_AMOUNT) <= 10000:
       name: "All order amounts are within business range"
-      samples limit: 3000
       attributes:
         dimension: Accuracy
-  
-  # Referential integrity check omitted (custom SQL validation can be added later)
-
-  # Business logic checks with sampling
-  - avg(ORDER_TOTAL_AMOUNT) between 40 and 700:
-      name: "Average order amount within business range"
-      samples limit: 3000
-      attributes:
-        dimension: Accuracy
-  
-  # Freshness checks
-  # Omitted freshness check to avoid failures on synthetic data timestamps

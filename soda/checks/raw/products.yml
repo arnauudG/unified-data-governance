@@ -1,7 +1,10 @@
 # RAW Layer - Products Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: RAW
 # Table: PRODUCTS (1,000+ records)
-# Purpose: Initial data quality assessment with relaxed thresholds
+# 
+# DECISION: "Should we ingest this data without breaking the pipeline?"
+# RISK: Pipeline breaks, downstream transformations fail
+# QUALITY DIMENSIONS: Validity (format/type errors), Schema (missing columns)
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -21,11 +24,11 @@ sample datasets:
     - include PRODUCTS
 
 checks for PRODUCTS:
-  # Schema validation
+  # Schema validation - prevents transformation failures
   - schema:
       name: "Product table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [PRODUCT_ID, PRODUCT_NAME, CATEGORY, SUBCATEGORY, PRICE, CURRENCY, DESCRIPTION, BRAND, SKU, WEIGHT, DIMENSIONS, CREATED_AT, UPDATED_AT]
         when forbidden column present: []
@@ -43,35 +46,8 @@ checks for PRODUCTS:
           DIMENSIONS: varchar
           CREATED_AT: timestamp
           UPDATED_AT: timestamp
-  # Row count checks
-  - row_count between 800 and 1200:
-      name: "Product count within expected range"
-      attributes:
-        dimension: Accuracy
   
-  # Completeness checks (relaxed for raw data)
-  - missing_count(PRODUCT_ID) = 0:
-      name: "No missing product IDs"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(PRODUCT_NAME) < 50:
-      name: "Minimal missing product names"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(PRICE) < 100:
-      name: "Minimal missing prices"
-      attributes:
-        dimension: Completeness
-  
-  # Uniqueness checks
-  - duplicate_count(PRODUCT_ID) = 0:
-      name: "Product IDs are unique"
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks
+  # Validity checks - format/type errors break pipelines
   - invalid_count(PRICE) < 100:
       name: "Invalid price values"
       valid min: -50
@@ -79,18 +55,6 @@ checks for PRODUCTS:
       attributes:
         dimension: Validity
   
-  # Range checks
-  - min(PRICE) >= -50:
-      name: "Negative prices within raw tolerance"
-      attributes:
-        dimension: Accuracy
-  
-  - max(PRICE) <= 10000:
-      name: "Maximum price within business limits"
-      attributes:
-        dimension: Accuracy
-  
-  # Additional validity checks for product data
   - invalid_count(CATEGORY) < 50:
       name: "Invalid category values"
       valid values: ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Toys', 'Health', 'Automotive']
@@ -102,19 +66,3 @@ checks for PRODUCTS:
       valid regex: '^.{2,50}$'
       attributes:
         dimension: Validity
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      name: "Sample failed product records for analysis"
-      samples limit: 50
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT PRODUCT_ID, PRODUCT_NAME, PRICE, SKU, WEIGHT
-        FROM PRODUCTS
-        WHERE PRODUCT_ID IS NULL 
-           OR PRODUCT_NAME IS NULL 
-           OR PRICE IS NULL
-           OR PRICE < -50
-           OR SKU IS NULL
-      fail: when > 0

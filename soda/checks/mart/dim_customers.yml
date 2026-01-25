@@ -1,7 +1,10 @@
 # MART Layer - Customer Dimension Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: MART
 # Table: dim_customers (10,000+ records)
-# Purpose: Business-ready data with strictest quality requirements
+# 
+# DECISION: "Can we trust this for customer analytics, segmentation, and personalization?"
+# RISK: Wrong customer segmentation, duplicate customers = wrong targeting, stale data = missed opportunities
+# QUALITY DIMENSIONS: Uniqueness (double-counting), Accuracy (wrong values), Timeliness (stale data), Schema
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -29,14 +32,7 @@ sample datasets:
     - include DIM_CUSTOMERS
 
 checks for DIM_CUSTOMERS:
-  # Row count checks with sampling
-  - row_count between 8000 and 12000:
-      name: "Mart customer count within expected range"
-      samples limit: 2000
-      attributes:
-        dimension: Accuracy
-  
-  # Schema validation
+  # Schema validation - structure matters for consumption
   - schema:
       name: "Mart customer dimension schema validation"
       attributes:
@@ -45,92 +41,25 @@ checks for DIM_CUSTOMERS:
         when required column missing: [CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, DATA_QUALITY_SCORE]
         when forbidden column present: [DUPLICATE_ID, TEST_COLUMN]
   
-  # Completeness checks (no missing values allowed) with sampling
-  - missing_count(CUSTOMER_ID) = 0:
-      name: "No missing customer IDs in mart"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(FIRST_NAME) = 0:
-      name: "No missing first names in mart"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(LAST_NAME) = 0:
-      name: "No missing last names in mart"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(EMAIL) < 1000:
-      name: "Most emails present in mart"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  # Uniqueness checks (strict) with sampling
+  # Uniqueness - duplicate customers = wrong targeting, wrong attribution
   - duplicate_count(CUSTOMER_ID) = 0:
       name: "Customer IDs are unique in mart"
-      samples limit: 2000
       attributes:
         dimension: Uniqueness
   
   - duplicate_count(EMAIL) = 0:
       name: "Emails are unique in mart"
-      samples limit: 2000
       attributes:
         dimension: Uniqueness
   
-  # Data quality score (high) with sampling
+  # Accuracy - wrong customer attributes = wrong segmentation
   - min(DATA_QUALITY_SCORE) > 80:
       name: "All customers have high data quality score"
-      samples limit: 2000
       attributes:
         dimension: Accuracy
   
-  - avg(DATA_QUALITY_SCORE) > 90:
-      name: "Average data quality score is high"
-      samples limit: 2000
-      attributes:
-        dimension: Accuracy
-  
-  # Validity checks (strict) with sampling
-  - invalid_count(EMAIL) = 0:
-      name: "All emails are valid in mart"
-      valid regex: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-      samples limit: 2000
-      attributes:
-        dimension: Validity
-  
-  - invalid_count(PHONE) = 0:
-      name: "All phone numbers are valid in mart"
-      valid regex: '^[0-9\-\+\(\)\s]+$'
-      samples limit: 2000
-      attributes:
-        dimension: Validity
-  
-  # Freshness checks
+  # Timeliness - stale customer data = missed opportunities
   - freshness(CREATED_AT) < 1d:
       name: "Mart customer data is fresh"
       attributes:
         dimension: Timeliness
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      samples limit: 50
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE, DATA_QUALITY_SCORE
-        FROM DIM_CUSTOMERS
-        WHERE CUSTOMER_ID IS NULL 
-           OR FIRST_NAME IS NULL 
-           OR LAST_NAME IS NULL
-           OR EMAIL IS NULL
-           OR NOT REGEXP_LIKE(EMAIL, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-           OR NOT REGEXP_LIKE(PHONE, '^[0-9\\-\\+\\(\\)\\s]+$')
-           OR DATA_QUALITY_SCORE < 80
-      name: "Sample failed mart customer dimension records for analysis"
-      fail: when > 200

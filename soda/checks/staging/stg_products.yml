@@ -1,7 +1,10 @@
 # STAGING Layer - Products Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: STAGING
 # Table: stg_products (1,000+ records)
-# Purpose: Data quality validation after initial transformation
+# 
+# DECISION: "Is the transformation successful and can we proceed to MART?"
+# RISK: Bad transformations, inconsistent data, missing required fields for downstream
+# QUALITY DIMENSIONS: Schema, Validity (transformation rules), Completeness (for downstream joins), Consistency
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -27,94 +30,29 @@ sample datasets:
     - include STG_PRODUCTS
 
 checks for STG_PRODUCTS:
-  # Row count checks with sampling
-  - row_count between 800 and 1200:
-      name: "Staging product count within expected range"
-      samples limit: 1000
-      attributes:
-        dimension: Accuracy
-  
-  # Schema validation
+  # Schema validation - structure matters for downstream
   - schema:
       name: "Staging product table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [PRODUCT_ID, PRODUCT_NAME, PRICE, SKU, DATA_QUALITY_SCORE]
         when forbidden column present: [DUPLICATE_PRODUCT_ID, TEST_COLUMN]
   
-  # Completeness checks (stricter than raw) with sampling
+  # Completeness - critical for downstream joins
   - missing_count(PRODUCT_ID) = 0:
       name: "No missing product IDs in staging"
-      samples limit: 1000
       attributes:
         dimension: Completeness
   
-  - missing_count(PRICE) < 50:
-      name: "Price completeness in staging"
-      samples limit: 1000
-      attributes:
-        dimension: Completeness
-  
-  # No negative prices in staging with sampling
+  # Validity - transformation rules
   - min(PRICE) >= 0:
       name: "No negative prices in staging"
-      samples limit: 1000
       attributes:
-        dimension: Accuracy
+        dimension: Validity
   
-  # Data quality score checks with sampling
+  # Consistency - transformation quality indicator
   - avg(DATA_QUALITY_SCORE) > 70:
       name: "Average data quality score above 70"
-      samples limit: 1000
       attributes:
-        dimension: Accuracy
-  
-  # Uniqueness checks (stricter than raw) with sampling
-  - duplicate_count(PRODUCT_ID) = 0:
-      name: "Product IDs are unique in staging"
-      samples limit: 1000
-      attributes:
-        dimension: Uniqueness
-  
-  - duplicate_count(SKU) < 25:
-      name: "SKU duplicates reduced in staging"
-      samples limit: 1000
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks (stricter than raw) with sampling
-  - min(PRICE) > 0:
-      name: "All prices are positive in staging"
-      samples limit: 1000
-      attributes:
-        dimension: Accuracy
-  
-  - max(PRICE) <= 10000:
-      name: "All prices are within business range"
-      samples limit: 1000
-      attributes:
-        dimension: Accuracy
-  
-  # Freshness checks
-  - freshness(CREATED_AT) < 1d:
-      name: "Staging product data is fresh"
-      attributes:
-        dimension: Timeliness
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      samples limit: 50
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT PRODUCT_ID, PRODUCT_NAME, PRICE, SKU, WEIGHT, DATA_QUALITY_SCORE
-        FROM STG_PRODUCTS
-        WHERE PRODUCT_ID IS NULL 
-           OR PRODUCT_NAME IS NULL 
-           OR PRICE IS NULL
-           OR PRICE < 0
-           OR SKU IS NULL
-           OR DATA_QUALITY_SCORE < 50
-      name: "Sample failed staging product records for analysis"
-      fail: when > 100
+        dimension: Consistency

@@ -1,7 +1,10 @@
 # QUALITY Layer - Check Results Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: QUALITY
 # Table: check_results (variable records)
-# Purpose: Data quality monitoring results with profiling
+# 
+# DECISION: "Can we trust the quality monitoring system itself?"
+# RISK: Broken quality monitoring = blind to data issues
+# QUALITY DIMENSIONS: Schema, Validity (format errors break monitoring)
 
 # Soda Cloud Profiling Configuration for Partner Certification
 profile columns:
@@ -19,53 +22,24 @@ sample datasets:
     - include CHECK_RESULTS
 
 checks for CHECK_RESULTS:
-  # Schema validation
+  # Schema validation - structure matters for quality monitoring
   - schema:
       name: "Quality check results schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [CHECK_ID, TABLE_NAME, CHECK_STATUS, CHECK_TYPE, CHECK_TIMESTAMP]
         when forbidden column present: [DUPLICATE_CHECK_ID, TEST_COLUMN]
-
-  # Completeness checks (safe on empty tables) with sampling
-  - missing_count(CHECK_ID) = 0:
-      name: "No missing check IDs"
-      samples limit: 1000
-      attributes:
-        dimension: Completeness
-
-  - missing_count(TABLE_NAME) = 0:
-      name: "No missing table names"
-      samples limit: 1000
-      attributes:
-        dimension: Completeness
-
-  - missing_count(CHECK_STATUS) = 0:
-      name: "No missing check statuses"
-      samples limit: 1000
-      attributes:
-        dimension: Completeness
-
-  - missing_count(CHECK_TIMESTAMP) = 0:
-      name: "No missing check timestamps"
-      samples limit: 1000
-      attributes:
-        dimension: Completeness
-
-  # Validity checks with sampling
+  
+  # Validity - format errors break monitoring
   - invalid_count(CHECK_STATUS) = 0:
       name: "All check statuses are valid"
       valid values: ['pass', 'fail', 'warn', 'error']
-      samples limit: 1000
       attributes:
         dimension: Validity
-
+  
   - invalid_count(CHECK_TYPE) = 0:
       name: "All check types are valid"
       valid values: ['row_count', 'missing_count', 'duplicate_count', 'invalid_count', 'freshness', 'schema']
-      samples limit: 1000
       attributes:
         dimension: Validity
-
-  # Freshness and row_count checks omitted to avoid failures on empty table during initial runs

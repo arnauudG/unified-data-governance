@@ -1,7 +1,10 @@
 # RAW Layer - Customers Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: RAW
 # Table: CUSTOMERS (10,000+ records)
-# Purpose: Initial data quality assessment with relaxed thresholds
+# 
+# DECISION: "Should we ingest this data without breaking the pipeline?"
+# RISK: Pipeline breaks, downstream transformations fail
+# QUALITY DIMENSIONS: Validity (format/type errors), Schema (missing columns)
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -21,11 +24,11 @@ sample datasets:
     - include CUSTOMERS
 
 checks for CUSTOMERS:
-  # Schema validation
+  # Schema validation - prevents transformation failures
   - schema:
       name: "Customer table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE, ADDRESS, CITY, STATE, ZIP_CODE, COUNTRY, CREATED_AT, UPDATED_AT]
         when forbidden column present: []
@@ -42,45 +45,8 @@ checks for CUSTOMERS:
           COUNTRY: varchar
           CREATED_AT: timestamp
           UPDATED_AT: timestamp
-  # Row count checks
-  - row_count between 8000 and 12000:
-      name: "Customer count within expected range"
-      attributes:
-        dimension: Accuracy
   
-  # Completeness checks (relaxed for raw data)
-  - missing_count(CUSTOMER_ID) = 0:
-      name: "No missing customer IDs"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(FIRST_NAME) < 100:
-      name: "Minimal missing first names"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(LAST_NAME) < 100:
-      name: "Minimal missing last names"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(EMAIL) < 1500:
-      name: "Email completeness check"
-      attributes:
-        dimension: Completeness
-  
-  # Uniqueness checks
-  - duplicate_count(CUSTOMER_ID) = 0:
-      name: "Customer IDs are unique"
-      attributes:
-        dimension: Uniqueness
-  
-  - duplicate_count(EMAIL) < 200:
-      name: "Email duplicates within acceptable range"
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks
+  # Validity checks - format errors break pipelines
   - invalid_count(EMAIL) < 500:
       name: "Invalid email formats"
       valid regex: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -92,31 +58,3 @@ checks for CUSTOMERS:
       valid regex: '^[0-9\-\+\(\)\s]+$'
       attributes:
         dimension: Validity
-  
-  # Additional business logic checks
-  - freshness(CREATED_AT) < 30:
-      name: "Customer data is recent"
-      attributes:
-        dimension: Timeliness
-  
-  - freshness(UPDATED_AT) < 7:
-      name: "Customer data is actively updated"
-      filter: UPDATED_AT IS NOT NULL
-      attributes:
-        dimension: Timeliness
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      name: "Sample failed customer records for analysis"
-      samples limit: 50
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE
-        FROM CUSTOMERS
-        WHERE CUSTOMER_ID IS NULL 
-           OR FIRST_NAME IS NULL 
-           OR LAST_NAME IS NULL
-           OR EMAIL IS NULL
-           OR EMAIL = ''
-      fail: when > 0

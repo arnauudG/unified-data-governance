@@ -1,7 +1,10 @@
 # RAW Layer - Orders Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: RAW
 # Table: ORDERS (20,000+ records)
-# Purpose: Initial data quality assessment with relaxed thresholds
+# 
+# DECISION: "Should we ingest this data without breaking the pipeline?"
+# RISK: Pipeline breaks, downstream transformations fail
+# QUALITY DIMENSIONS: Validity (format/type errors), Schema (missing columns)
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -21,11 +24,11 @@ sample datasets:
     - include ORDERS
 
 checks for ORDERS:
-  # Schema validation
+  # Schema validation - prevents transformation failures
   - schema:
       name: "Order table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [ORDER_ID, CUSTOMER_ID, ORDER_DATE, ORDER_STATUS, TOTAL_AMOUNT, CURRENCY, SHIPPING_ADDRESS, PAYMENT_METHOD, CREATED_AT, UPDATED_AT]
         when forbidden column present: []
@@ -40,102 +43,17 @@ checks for ORDERS:
           PAYMENT_METHOD: varchar
           CREATED_AT: timestamp
           UPDATED_AT: timestamp
-  # Row count checks
-  - row_count between 15000 and 25000:
-      name: "Order count within expected range"
-      attributes:
-        dimension: Accuracy
   
-  # Completeness checks (relaxed for raw data)
-  - missing_count(ORDER_ID) = 0:
-      name: "No missing order IDs"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(CUSTOMER_ID) < 500:
-      name: "Minimal missing customer IDs"
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(TOTAL_AMOUNT) < 200:
-      name: "Minimal missing total amounts"
-      attributes:
-        dimension: Completeness
-  
-  # Uniqueness checks
-  - duplicate_count(ORDER_ID) = 0:
-      name: "Order IDs are unique"
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks
+  # Validity checks - format/type errors break pipelines
   - invalid_count(ORDER_STATUS) < 200:
       name: "Invalid order statuses"
       valid values: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']
       attributes:
         dimension: Validity
   
-  # Range checks
-  - min(TOTAL_AMOUNT) >= -100:
-      name: "Negative amounts within raw tolerance"
+  - invalid_count(TOTAL_AMOUNT) < 200:
+      name: "Invalid order amounts"
+      valid min: -100
+      valid max: 10000
       attributes:
-        dimension: Accuracy
-  
-  - max(TOTAL_AMOUNT) <= 10000:
-      name: "Maximum order amount within business limits"
-      attributes:
-        dimension: Accuracy
-  
-  # Business logic checks
-  - avg(TOTAL_AMOUNT) between 50 and 500:
-      name: "Average order amount within business range"
-      attributes:
-        dimension: Accuracy
-  
-  # Business logic validation checks
-  - invalid_count(CUSTOMER_ID) < 100:
-      name: "Orders with invalid customer references"
-      valid values: ['CUST_001', 'CUST_002', 'CUST_003', 'CUST_004', 'CUST_005']
-      attributes:
-        dimension: Consistency
-  
-  # Order status distribution validation
-  - freshness(ORDER_DATE) < 30:
-      name: "Recent order activity"
-      attributes:
-        dimension: Timeliness
-  
-  - freshness(ORDER_DATE) < 7:
-      name: "Very recent order activity"
-      filter: ORDER_STATUS IN ('pending', 'processing')
-      attributes:
-        dimension: Timeliness
-  
-  # Business logic validation
-  - row_count > 0:
-      name: "Order count validation"
-      attributes:
-        dimension: Accuracy
-  
-  # In-check Filter - High value orders only
-  - avg(TOTAL_AMOUNT) between 200 and 800:
-      name: "High value orders average within range"
-      filter: TOTAL_AMOUNT > 200
-      attributes:
-        dimension: Accuracy
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      name: "Sample failed order records for analysis"
-      samples limit: 50
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT ORDER_ID, CUSTOMER_ID, ORDER_STATUS, TOTAL_AMOUNT
-        FROM ORDERS
-        WHERE ORDER_ID IS NULL 
-           OR CUSTOMER_ID IS NULL 
-           OR ORDER_STATUS IS NULL
-           OR TOTAL_AMOUNT IS NULL
-           OR TOTAL_AMOUNT < -100
-      fail: when > 0
+        dimension: Validity

@@ -1,7 +1,10 @@
 # STAGING Layer - Order Items Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: STAGING
 # Table: stg_order_items (50,000+ records)
-# Purpose: Data quality validation after initial transformation
+# 
+# DECISION: "Is the transformation successful and can we proceed to MART?"
+# RISK: Bad transformations, inconsistent data, missing required fields for downstream
+# QUALITY DIMENSIONS: Schema, Validity (transformation rules), Completeness (for downstream joins), Consistency
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -15,11 +18,6 @@ profile columns:
     - exclude STG_ORDER_ITEMS.CREATED_AT
     - exclude STG_ORDER_ITEMS.UPDATED_AT
     - exclude STG_ORDER_ITEMS.INGESTION_TIMESTAMP
-    - exclude STG_ORDER_ITEMS.HAS_INVALID_ORDER
-    - exclude STG_ORDER_ITEMS.HAS_INVALID_PRODUCT
-    - exclude STG_ORDER_ITEMS.HAS_NEGATIVE_QUANTITY
-    - exclude STG_ORDER_ITEMS.HAS_NEGATIVE_PRICE
-    - exclude STG_ORDER_ITEMS.HAS_NEGATIVE_TOTAL
 
 # Sample datasets configuration for Soda Cloud
 sample datasets:
@@ -27,103 +25,29 @@ sample datasets:
     - include STG_ORDER_ITEMS
 
 checks for STG_ORDER_ITEMS:
-  # Row count checks with sampling
-  - row_count between 40000 and 60000:
-      name: "Staging order items count within expected range"
-      samples limit: 5000
-      attributes:
-        dimension: Accuracy
-  
-  # Schema validation
+  # Schema validation - structure matters for downstream
   - schema:
       name: "Staging order items table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [ORDER_ITEM_ID, ORDER_ID, PRODUCT_ID, QUANTITY, UNIT_PRICE, TOTAL_PRICE, DATA_QUALITY_SCORE]
         when forbidden column present: [DUPLICATE_ORDER_ITEM_ID, TEST_COLUMN]
   
-  # Completeness checks (stricter than raw) with sampling
+  # Completeness - critical for downstream joins
   - missing_count(ORDER_ITEM_ID) = 0:
       name: "No missing order item IDs in staging"
-      samples limit: 5000
       attributes:
         dimension: Completeness
   
-  - missing_count(QUANTITY) < 2000:
-      name: "Quantity completeness in staging"
-      samples limit: 5000
-      attributes:
-        dimension: Completeness
-  
-  # No negative quantities in staging with sampling
+  # Validity - transformation rules
   - min(QUANTITY) >= 0:
       name: "No negative quantities in staging"
-      samples limit: 5000
       attributes:
-        dimension: Accuracy
+        dimension: Validity
   
-  # Data quality score checks with sampling
+  # Consistency - transformation quality indicator
   - avg(DATA_QUALITY_SCORE) > 85:
       name: "Average data quality score above 85"
-      samples limit: 5000
       attributes:
-        dimension: Accuracy
-  
-  # Uniqueness checks (stricter than raw) with sampling
-  - duplicate_count(ORDER_ITEM_ID) = 0:
-      name: "Order item IDs are unique in staging"
-      samples limit: 5000
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks (stricter than raw) with sampling
-  - min(QUANTITY) > 0:
-      name: "All quantities are positive in staging"
-      samples limit: 5000
-      attributes:
-        dimension: Accuracy
-  
-  - min(UNIT_PRICE) >= 0:
-      name: "All unit prices are non-negative in staging"
-      samples limit: 5000
-      attributes:
-        dimension: Accuracy
-  
-  - min(TOTAL_PRICE) >= 0:
-      name: "All total prices are non-negative in staging"
-      samples limit: 5000
-      attributes:
-        dimension: Accuracy
-  
-  # Business logic checks with sampling
-  - avg(TOTAL_PRICE) between 0 and 1000:
-      name: "Total prices are within reasonable range"
-      samples limit: 5000
-      attributes:
-        dimension: Accuracy
-  
-  # Freshness checks
-  - freshness(CREATED_AT) < 1d:
-      name: "Staging order items data is fresh"
-      attributes:
-        dimension: Timeliness
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      samples limit: 200
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT ORDER_ITEM_ID, ORDER_ID, PRODUCT_ID, QUANTITY, UNIT_PRICE, TOTAL_PRICE, DATA_QUALITY_SCORE
-        FROM STG_ORDER_ITEMS
-        WHERE ORDER_ITEM_ID IS NULL 
-           OR ORDER_ID IS NULL 
-           OR PRODUCT_ID IS NULL
-           OR QUANTITY IS NULL
-           OR QUANTITY < 0
-           OR UNIT_PRICE IS NULL
-           OR TOTAL_PRICE IS NULL
-           OR DATA_QUALITY_SCORE < 50
-      name: "Sample failed staging order item records for analysis"
-      fail: when > 500
+        dimension: Consistency

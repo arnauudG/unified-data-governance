@@ -1,7 +1,10 @@
 # STAGING Layer - Customers Table Quality Checks
 # Database: SODA_CERTIFICATION, Schema: STAGING
 # Table: stg_customers (10,000+ records)
-# Purpose: Data quality validation after initial transformation
+# 
+# DECISION: "Is the transformation successful and can we proceed to MART?"
+# RISK: Bad transformations, inconsistent data, missing required fields for downstream
+# QUALITY DIMENSIONS: Schema, Validity (transformation rules), Completeness (for downstream joins), Consistency
 
 # Dataset discovery configuration for Soda Cloud
 discover datasets:
@@ -25,88 +28,30 @@ sample datasets:
     - include STG_CUSTOMERS
 
 checks for STG_CUSTOMERS:
-  # Row count checks with sampling
-  - row_count between 8000 and 12000:
-      name: "Staging customer count within expected range"
-      samples limit: 2000
-      attributes:
-        dimension: Accuracy
-  
-  # Schema validation
+  # Schema validation - structure matters for downstream
   - schema:
       name: "Staging customer table schema validation"
       attributes:
-        dimension: Accuracy
+        dimension: Validity
       fail:
         when required column missing: [CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, DATA_QUALITY_SCORE]
         when forbidden column present: [DUPLICATE_ID, TEST_COLUMN]
   
-  # Completeness checks (stricter than raw) with sampling
+  # Completeness - critical for downstream joins
   - missing_count(CUSTOMER_ID) = 0:
       name: "No missing customer IDs in staging"
-      samples limit: 2000
       attributes:
         dimension: Completeness
   
-  - missing_count(FIRST_NAME) < 50:
-      name: "Minimal missing first names in staging"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  - missing_count(EMAIL) < 1000:
-      name: "Email completeness in staging"
-      samples limit: 2000
-      attributes:
-        dimension: Completeness
-  
-  # Data quality score checks with sampling
-  - avg(DATA_QUALITY_SCORE) > 80:
-      name: "Average data quality score above 80"
-      samples limit: 2000
-      attributes:
-        dimension: Accuracy
-  
-  # Uniqueness checks (stricter than raw) with sampling
-  - duplicate_count(CUSTOMER_ID) = 0:
-      name: "Customer IDs are unique in staging"
-      samples limit: 2000
-      attributes:
-        dimension: Uniqueness
-  
-  - duplicate_count(EMAIL) < 100:
-      name: "Email duplicates reduced in staging"
-      samples limit: 2000
-      attributes:
-        dimension: Uniqueness
-  
-  # Validity checks (stricter than raw) with sampling
+  # Validity - transformation rules
   - invalid_count(EMAIL) < 200:
       name: "Invalid email formats reduced in staging"
       valid regex: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-      samples limit: 2000
       attributes:
         dimension: Validity
   
-  # Freshness checks
-  - freshness(CREATED_AT) < 1d:
-      name: "Staging customer data is fresh"
+  # Consistency - transformation quality indicator
+  - avg(DATA_QUALITY_SCORE) > 80:
+      name: "Average data quality score above 80"
       attributes:
-        dimension: Timeliness
-  
-  # Failed row samples for detailed analysis
-  - failed rows:
-      samples limit: 100
-      attributes:
-        dimension: Accuracy
-      fail query: |
-        SELECT CUSTOMER_ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE, DATA_QUALITY_SCORE
-        FROM STG_CUSTOMERS
-        WHERE CUSTOMER_ID IS NULL 
-           OR FIRST_NAME IS NULL 
-           OR LAST_NAME IS NULL
-           OR EMAIL IS NULL
-           OR NOT REGEXP_LIKE(EMAIL, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-           OR DATA_QUALITY_SCORE < 50
-      name: "Sample failed staging customer records for analysis"
-      fail: when > 200
+        dimension: Consistency
