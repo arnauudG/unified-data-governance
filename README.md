@@ -251,6 +251,10 @@ All quality checks are categorized using standardized dimensions:
 
 ## Quick Start
 
+> 💡 **New to the project?** See [QUICKSTART.md](QUICKSTART.md) for a step-by-step guide to get up and running in minutes!
+
+## Quick Start
+
 ### Prerequisites
 - Docker & Docker Compose (latest version)
 - Snowflake account with appropriate permissions

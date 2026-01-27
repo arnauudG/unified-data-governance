@@ -56,7 +56,6 @@ services:
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
-      - ../../load_env.sh:/opt/airflow/load_env.sh
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs
     ports:
@@ -125,7 +124,6 @@ services:
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
-      - ../../load_env.sh:/opt/airflow/load_env.sh
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs
     command: scheduler
@@ -189,7 +187,6 @@ services:
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
-      - ../../load_env.sh:/opt/airflow/load_env.sh
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs
     command: version

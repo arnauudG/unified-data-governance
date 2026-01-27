@@ -73,7 +73,7 @@ setup: venv deps
         echo "✅ .env file found"; \
     fi
     @echo "🔄 Updating Soda data source names to match database configuration..."
-    @bash -c "source load_env.sh && {{uv}} run python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "[OK] Environment setup completed"
     @echo "[INFO] Next steps:"
     @echo "  1. Ensure .env file has all required credentials"
@@ -90,9 +90,9 @@ airflow-up:
     @echo "🌐 Ensuring shared Docker network exists..."
     @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
     @echo "🔄 Updating Soda data source names to match database configuration..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
     @echo "📥 Loading environment variables and starting Docker containers..."
-    @bash -c "source load_env.sh && cd airflow/docker && docker-compose up -d"
+    @cd airflow/docker && docker-compose up -d
     @echo "⏳ Waiting for services to be ready..."
     @sleep 30
     @echo "▶️  Unpausing all Soda DAGs..."
@@ -111,7 +111,7 @@ superset-up:
     @echo "🌐 Ensuring shared Docker network exists..."
     @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
     @echo "📥 Loading environment variables and starting Docker containers..."
-    @bash -c "source load_env.sh && cd superset && docker-compose up -d"
+    @cd superset && docker-compose up -d
     @echo "⏳ Waiting for Superset to be ready..."
     @sleep 45
     @echo "[OK] Superset started with Docker"
@@ -123,9 +123,9 @@ all-up:
     @echo "🌐 Ensuring shared Docker network exists..."
     @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
     @echo "🔄 Updating Soda data source names to match database configuration..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
     @echo "📥 Loading environment variables and starting Docker containers..."
-    @bash -c "source load_env.sh && cd airflow/docker && docker-compose up -d && cd ../../superset && docker-compose up -d"
+    @cd airflow/docker && docker-compose up -d && cd ../../superset && docker-compose up -d
     @echo "⏳ Waiting for services to be ready..."
     @sleep 45
     @echo "▶️  Unpausing all Soda DAGs..."
@@ -235,7 +235,7 @@ airflow-rebuild:
 # Trigger initialization DAG (fresh setup only)
 airflow-trigger-init:
     @echo "🔄 Ensuring Soda data source names are up to date..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "🚀 Triggering initialization DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_initialization
     @echo "[OK] Initialization DAG triggered"
@@ -244,7 +244,7 @@ airflow-trigger-init:
 # Trigger layered pipeline DAG (layer-by-layer processing)
 airflow-trigger-pipeline:
     @echo "🔄 Ensuring Soda data source names are up to date..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "🔄 Triggering layered pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run
     @echo "[OK] Layered pipeline DAG triggered"
@@ -253,7 +253,7 @@ airflow-trigger-pipeline:
 # Trigger pipeline with strict RAW layer guardrails
 airflow-trigger-pipeline-strict-raw:
     @echo "🔄 Ensuring Soda data source names are up to date..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "🔄 Triggering strict RAW pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_raw
     @echo "[OK] Strict RAW pipeline DAG triggered"
@@ -263,7 +263,7 @@ airflow-trigger-pipeline-strict-raw:
 # Trigger pipeline with strict MART layer guardrails
 airflow-trigger-pipeline-strict-mart:
     @echo "🔄 Ensuring Soda data source names are up to date..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "🔄 Triggering strict MART pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_mart
     @echo "[OK] Strict MART pipeline DAG triggered"
@@ -284,7 +284,7 @@ airflow-list:
 # Update Soda data source names in config files
 soda-update-datasources:
     @echo "🔄 Updating Soda data source names..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py"
+    @{{uv}} run python3 soda/update_data_source_names.py
     @echo "[OK] Data source names updated"
 
 # Organize Soda dump data in user-friendly structure
@@ -297,7 +297,7 @@ organize-soda-data:
 superset-upload-data:
     @echo "📤 Complete Soda data workflow..."
     @echo "🔄 Ensuring Soda data source names are up to date..."
-    @bash -c "source load_env.sh && python3 soda/update_data_source_names.py" || echo "⚠️  Warning: Could not update data source names"
+    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
     @echo "1. Extracting data from Soda Cloud..."
     @just soda-dump
     @echo "2. Organizing data..."
