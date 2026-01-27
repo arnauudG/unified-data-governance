@@ -1,0 +1,64 @@
+{
+  "data_asset_type": "SqlAlchemyDataset",
+  "expectation_suite_name": "raw.customers",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_columns_to_match_ordered_list",
+      "kwargs": {
+        "column_list": [
+          "CUSTOMER_ID",
+          "FIRST_NAME",
+          "LAST_NAME",
+          "EMAIL",
+          "PHONE",
+          "ADDRESS",
+          "CITY",
+          "STATE",
+          "ZIP_CODE",
+          "COUNTRY",
+          "CREATED_AT",
+          "UPDATED_AT"
+        ]
+      },
+      "meta": {
+        "notes": {
+          "content": "Schema validation - prevents transformation failures",
+          "format": "markdown"
+        }
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "EMAIL",
+        "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "meta": {
+        "notes": {
+          "content": "Validity checks - format errors break pipelines",
+          "format": "markdown"
+        }
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "PHONE",
+        "regex": "^[0-9\\-\\+\\(\\)\\s]+$"
+      },
+      "meta": {
+        "notes": {
+          "content": "Validity checks - format errors break pipelines",
+          "format": "markdown"
+        }
+      }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "notes": {
+      "content": "Expectations for raw.customers - Decision-driven quality checks",
+      "format": "markdown"
+    }
+  }
+}

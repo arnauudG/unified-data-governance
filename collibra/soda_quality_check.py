@@ -65,6 +65,19 @@ def get_failed_critical_checks(layer: str, dataset_ids: Optional[List[str]] = No
         logger.warning("SodaClient not available. Skipping quality check validation.")
         return []
     
+    # Define expected dataset names for each layer (based on our check files)
+    EXPECTED_DATASETS = {
+        'raw': ['CUSTOMERS', 'PRODUCTS', 'ORDERS', 'ORDER_ITEMS'],
+        'staging': ['STG_CUSTOMERS', 'STG_PRODUCTS', 'STG_ORDERS', 'STG_ORDER_ITEMS'],
+        'mart': ['DIM_CUSTOMERS', 'DIM_PRODUCTS', 'FACT_ORDERS'],
+        'quality': ['CHECK_RESULTS']
+    }
+    
+    expected_dataset_names = EXPECTED_DATASETS.get(layer.lower(), [])
+    if not expected_dataset_names:
+        logger.warning(f"No expected datasets defined for layer '{layer}'. Skipping quality check.")
+        return []
+    
     try:
         # Load Soda config
         soda_config_path = PROJECT_ROOT / "soda" / "soda-collibra-integration-configuration" / "config.yaml"
@@ -178,6 +191,11 @@ def get_failed_critical_checks(layer: str, dataset_ids: Optional[List[str]] = No
                         dataset = check.get('dataset', {})
                         if isinstance(dataset, dict):
                             dataset_name = dataset.get('name', 'Unknown')
+                    
+                    # Filter: Only include checks from expected datasets for this layer
+                    if dataset_name.upper() not in [name.upper() for name in expected_dataset_names]:
+                        logger.debug(f"Skipping check '{check_name}' from dataset '{dataset_name}' (not in expected datasets for {layer} layer)")
+                        continue
                     
                     failed_critical.append({
                         'name': check_name,

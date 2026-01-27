@@ -23,7 +23,7 @@ MANIFEST
 
 # Virtual environments
 .env
-.venv
+.venv/
 venv/
 env.bak/
 venv.bak/

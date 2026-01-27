@@ -10,13 +10,13 @@ Apache Superset provides powerful data visualization capabilities for your integ
 
 ### Start Superset
 ```bash
-make superset-up
+just superset-up
 ```
 **Note**: Environment variables are automatically loaded with dynamic validation. The enhanced loader supports any variables in your .env file with intelligent sensitivity detection.
 
 ### Start All Services (Airflow + Superset)
 ```bash
-make all-up
+just all-up
 ```
 **Note**: Environment variables are automatically loaded with dynamic validation. The enhanced loader supports any variables in your .env file with intelligent sensitivity detection.
 
@@ -27,20 +27,20 @@ make all-up
 
 ## Available Commands
 
-- `make superset-up` - Start Superset services
-- `make superset-down` - Stop Superset services
-- `make superset-status` - Check Superset status
-- `make superset-logs` - View Superset logs
-- `make superset-reset` - Reset Superset database
-- `make superset-clean-restart` - Clean restart Superset (removes all data)
-- `make superset-reset-data` - Reset only Superset data (keep containers)
-- `make superset-reset-schema` - Reset only soda schema (fixes table structure issues)
-- `make superset-upload-data` - Complete Soda workflow: updates data source names + dump + organize + upload to Superset
+- `just superset-up` - Start Superset services
+- `just superset-down` - Stop Superset services
+- `just superset-status` - Check Superset status
+- `just superset-logs` - View Superset logs
+- `just superset-reset` - Reset Superset database
+- `just superset-clean-restart` - Clean restart Superset (removes all data)
+- `just superset-reset-data` - Reset only Superset data (keep containers)
+- `just superset-reset-schema` - Reset only soda schema (fixes table structure issues)
+- `just superset-upload-data` - Complete Soda workflow: updates data source names + dump + organize + upload to Superset
 
 ## Configuration
 
 ### Environment Variables
-Superset automatically loads and validates environment variables when started with `make superset-up`. The following variables are required:
+Superset automatically loads and validates environment variables when started with `just superset-up`. The following variables are required:
 
 **Required Variables:**
 - `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD`
@@ -115,7 +115,7 @@ Superset can visualize data from:
 
 **Manual Upload**: You can also upload data manually at any time:
 ```bash
-make superset-upload-data
+just superset-upload-data
 ```
 
 ### Quality-Gated Metadata Sync
@@ -151,24 +151,24 @@ If Collibra integration is configured, you can visualize:
 
 ### Superset Won't Start
 ```bash
-make superset-reset
+just superset-reset
 ```
 
 ### Database Schema Issues (Duplicate Tables)
 If you see errors like "column does not exist" or duplicate tables:
 ```bash
-make superset-reset-schema  # Reset only the soda schema
-make superset-upload-data  # Re-upload data with correct schema
+just superset-reset-schema  # Reset only the soda schema
+just superset-upload-data  # Re-upload data with correct schema
 ```
 
 ### Check Logs
 ```bash
-make superset-logs
+just superset-logs
 ```
 
 ### Verify Status
 ```bash
-make superset-status
+just superset-status
 ```
 
 ## Next Steps

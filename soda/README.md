@@ -69,17 +69,17 @@ The Airflow DAG automatically derives data source names from the database name u
 ### Updating Configuration Files
 
 **Automatic Updates**: The YAML configuration files are automatically updated when you run:
-- `make setup` - During initial setup
-- `make airflow-up` - Before starting Airflow
-- `make all-up` - Before starting all services
-- `make airflow-trigger-init` - Before triggering initialization
-- `make airflow-trigger-pipeline` - Before triggering pipeline
-- `make superset-upload-data` - Before uploading data to Superset
+- `just setup` - During initial setup
+- `just airflow-up` - Before starting Airflow
+- `just all-up` - Before starting all services
+- `just airflow-trigger-init` - Before triggering initialization
+- `just airflow-trigger-pipeline` - Before triggering pipeline
+- `just superset-upload-data` - Before uploading data to Superset
 
 **Manual Update** (if needed):
 ```bash
 # Update all configuration files with new data source names
-make soda-update-datasources
+just soda-update-datasources
 # or
 python3 soda/update_data_source_names.py
 ```
@@ -89,7 +89,7 @@ This script will:
 - Generate the appropriate data source names
 - Update all configuration files automatically
 
-**Note**: The Airflow DAG uses dynamic data source names, so it will work automatically. The YAML files are kept in sync automatically via Makefile targets.
+**Note**: The Airflow DAG uses dynamic data source names, so it will work automatically. The YAML files are kept in sync automatically via justfile targets.
 
 ## Collibra Integration
 
@@ -240,7 +240,7 @@ The pipeline runs with full Soda Cloud and Collibra integration:
 
 ```bash
 # Trigger the complete pipeline with profiling and sampling
-make airflow-trigger-pipeline
+just airflow-trigger-pipeline
 ```
 
 **This executes:**

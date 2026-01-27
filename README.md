@@ -257,18 +257,40 @@ All quality checks are categorized using standardized dimensions:
 - Soda Cloud account (required for quality monitoring)
 - Collibra Data Intelligence Cloud account (required for governance integration)
 - Python 3.11+ (for local script execution)
+- [uv](https://github.com/astral-sh/uv) - Fast Python package manager (recommended)
+
+Install uv:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Or: pip install uv
+```
 
 ### 1. Environment Setup
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Soda-Certification
+cd unified-data-governance
 
 # Create .env file with your credentials (single file for entire project)
 cp .env.example .env
 # Edit .env with your actual credentials
+
+# Set up Python environment with uv (recommended)
+uv venv
+uv pip install -r requirements.txt
+uv pip install -i https://pypi.cloud.soda.io soda-snowflake==1.12.24
+
+# Or use just (recommended)
+just setup
 ```
+
+**Using uv + just (Recommended)**:
+- Faster dependency resolution and installation
+- Better dependency conflict handling
+- No need to activate virtual environment: use `uv run python script.py`
+- Virtual environment created in `.venv/` automatically
+- `just` provides simpler command syntax than `make`
 
 **Important**: You only need **one `.env` file** in the project root. This file is used by:
 - Docker Compose (Airflow, Superset)
@@ -280,9 +302,9 @@ The `.env` file is automatically loaded and mounted into Docker containers.
 **Note**: The database name is parameterized via `SNOWFLAKE_DATABASE`. If not set, it defaults to `DATA_GOVERNANCE_PLATFORM`. All components (dbt, Soda, setup scripts) use this environment variable consistently.
 
 **Automatic Data Source Name Updates**: Soda configuration files are automatically updated to match your `SNOWFLAKE_DATABASE` when you run:
-- `make setup`, `make airflow-up`, `make all-up` - Before starting services
-- `make airflow-trigger-init`, `make airflow-trigger-pipeline` - Before triggering DAGs
-- `make superset-upload-data` - Before uploading data to Superset
+- `just setup`, `just airflow-up`, `just all-up` - Before starting services
+- `just airflow-trigger-init`, `just airflow-trigger-pipeline` - Before triggering DAGs
+- `just superset-upload-data` - Before uploading data to Superset
 
 This ensures data source names (e.g., `data_governance_platform_raw`) always match your database configuration. See [Soda Configuration](soda/README.md#data-source-name-parameterization) for details.
 
@@ -312,24 +334,24 @@ COLLIBRA_PASSWORD=your_password
 
 ```bash
 # Start all services (Airflow + Superset)
-make all-up
+just all-up
 
 # Verify services are running
-make airflow-status
-make superset-status
+just airflow-status
+just superset-status
 ```
 
 ### 3. Initialize and Run Pipeline
 
 ```bash
 # Initialize data (creates tables and loads sample data)
-make airflow-trigger-init
+just airflow-trigger-init
 
 # Run complete pipeline (engineering + quality + governance sync)
-make airflow-trigger-pipeline
+just airflow-trigger-pipeline
 
 # Extract and visualize Soda Cloud data
-make superset-upload-data
+just superset-upload-data
 ```
 
 ### 4. Access Dashboards
@@ -473,13 +495,13 @@ The platform provides three pipeline configurations with different quality guard
 **Triggering Pipelines**:
 ```bash
 # Default pipeline (RAW lenient, MART lenient)
-make airflow-trigger-pipeline
+just airflow-trigger-pipeline
 
 # Strict RAW guardrails
-make airflow-trigger-pipeline-strict-raw
+just airflow-trigger-pipeline-strict-raw
 
 # Strict MART guardrails
-make airflow-trigger-pipeline-strict-mart
+just airflow-trigger-pipeline-strict-mart
 ```
 
 ## Quality Checks by Layer
@@ -510,21 +532,21 @@ make airflow-trigger-pipeline-strict-mart
 
 ### Service Management
 ```bash
-make all-up                  # Start all services
-make airflow-up             # Start Airflow only
-make superset-up            # Start Superset only
-make airflow-down           # Stop Airflow
-make superset-down          # Stop Superset
-make airflow-status         # Check Airflow status
-make superset-status        # Check Superset status
+just all-up                  # Start all services
+just airflow-up             # Start Airflow only
+just superset-up            # Start Superset only
+just airflow-down           # Stop Airflow
+just superset-down          # Stop Superset
+just airflow-status         # Check Airflow status
+just superset-status        # Check Superset status
 ```
 
 ### Pipeline Execution
 ```bash
-make airflow-trigger-init              # Initialize data
-make airflow-trigger-pipeline          # Run complete pipeline (RAW lenient, MART strict)
-make airflow-trigger-pipeline-strict-raw   # Run pipeline with strict RAW guardrails (pipeline fails if RAW checks fail)
-make airflow-trigger-pipeline-strict-mart  # Run pipeline with strict MART guardrails (pipeline fails if MART checks fail)
+just airflow-trigger-init              # Initialize data
+just airflow-trigger-pipeline          # Run complete pipeline (RAW lenient, MART strict)
+just airflow-trigger-pipeline-strict-raw   # Run pipeline with strict RAW guardrails (pipeline fails if RAW checks fail)
+just airflow-trigger-pipeline-strict-mart  # Run pipeline with strict MART guardrails (pipeline fails if MART checks fail)
 ```
 
 **Pipeline Guardrail Configurations**:
@@ -532,21 +554,21 @@ make airflow-trigger-pipeline-strict-mart  # Run pipeline with strict MART guard
 - **`soda_pipeline_run_strict_raw`**: RAW layer strict (fails on critical checks), MART layer lenient
 - **`soda_pipeline_run_strict_mart`**: RAW layer lenient, MART layer strict (fails on critical checks)
 
-**Note**: The pipeline automatically uploads data to Superset after completion. Ensure Superset is running (`make superset-up`) before triggering the pipeline.
+**Note**: The pipeline automatically uploads data to Superset after completion. Ensure Superset is running (`just superset-up`) before triggering the pipeline.
 
 ### Data Quality Management
 ```bash
-make superset-upload-data   # Manual upload: Update data sources + extract + organize + upload to Superset
-make soda-dump              # Extract from Soda Cloud
-make organize-soda-data      # Organize data structure
-make soda-update-datasources # Manually update Soda data source names (automatic in other commands)
+just superset-upload-data   # Manual upload: Update data sources + extract + organize + upload to Superset
+just soda-dump              # Extract from Soda Cloud
+just organize-soda-data      # Organize data structure
+just soda-update-datasources # Manually update Soda data source names (automatic in other commands)
 ```
 
 ### Development
 ```bash
-make airflow-logs           # View Airflow logs
-make superset-logs          # View Superset logs
-make clean                  # Clean up artifacts
+just airflow-logs           # View Airflow logs
+just superset-logs          # View Superset logs
+just clean                  # Clean up artifacts
 ```
 
 ## Documentation
@@ -621,9 +643,9 @@ This platform demonstrates:
 - Ensure proper permissions
 
 **Service Issues**
-- Check container logs: `make airflow-logs` or `make superset-logs`
+- Check container logs: `just airflow-logs` or `just superset-logs`
 - Verify Docker is running
-- Check service status: `make airflow-status`
+- Check service status: `just airflow-status`
 
 ## Success Metrics
 

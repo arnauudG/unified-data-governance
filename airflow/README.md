@@ -112,7 +112,7 @@ Quality checks **gate** metadata synchronization. Metadata sync only happens aft
 
 ### Start Airflow
 ```bash
-make airflow-up
+just airflow-up
 ```
 
 ### Access Airflow UI
@@ -123,26 +123,26 @@ make airflow-up
 ### Trigger DAGs
 ```bash
 # Initialize data (one-time)
-make airflow-trigger-init
+just airflow-trigger-init
 
 # Run main pipeline (RAW lenient, MART strict)
-make airflow-trigger-pipeline
+just airflow-trigger-pipeline
 
 # Run pipeline with strict RAW guardrails
-make airflow-trigger-pipeline-strict-raw
+just airflow-trigger-pipeline-strict-raw
 
 # Run pipeline with strict MART guardrails
-make airflow-trigger-pipeline-strict-mart
+just airflow-trigger-pipeline-strict-mart
 ```
 
 ### Check Status
 ```bash
-make airflow-status
+just airflow-status
 ```
 
 ### View Logs
 ```bash
-make airflow-logs
+just airflow-logs
 ```
 
 ## Configuration
@@ -158,8 +158,8 @@ The Docker setup:
 
 **After updating `.env` file**: You must restart Airflow containers for changes to take effect:
 ```bash
-make airflow-down
-make airflow-up
+just airflow-down
+just airflow-up
 ```
 
 Airflow automatically loads environment variables from the root `.env` file:
@@ -271,9 +271,9 @@ The `superset_upload_data` task is automatically executed at the end of the pipe
   2. Extracts latest data from Soda Cloud API
   3. Organizes data (keeps only latest files)
   4. Uploads to Superset PostgreSQL database
-- **Requirements**: Superset must be running (`make superset-up`)
+- **Requirements**: Superset must be running (`just superset-up`)
 - **Failure Handling**: Task fails with clear error message if Superset is not available
-- **Manual Alternative**: Can be run manually with `make superset-upload-data`
+- **Manual Alternative**: Can be run manually with `just superset-upload-data`
 
 ## Monitoring & Observability
 
@@ -292,10 +292,10 @@ The `superset_upload_data` task is automatically executed at the end of the pipe
 ### Monitoring Commands
 ```bash
 # Check service status
-make airflow-status
+just airflow-status
 
 # View recent logs
-make airflow-logs
+just airflow-logs
 
 # Check specific DAG
 # Access Airflow UI → DAGs → Select DAG → View logs
@@ -324,11 +324,11 @@ make airflow-logs
 #### Superset Upload Failures
 - **Cause**: Superset container not running or database not accessible
 - **Solution**: 
-  1. Start Superset: `make superset-up`
+  1. Start Superset: `just superset-up`
   2. Wait for Superset to be ready (about 45 seconds)
-  3. Verify status: `make superset-status`
-  4. Check container logs: `make superset-logs`
-  5. Alternatively, run manual upload: `make superset-upload-data`
+  3. Verify status: `just superset-status`
+  4. Check container logs: `just superset-logs`
+  5. Alternatively, run manual upload: `just superset-upload-data`
 
 #### Collibra Integration Issues
 - **Cause**: Incorrect Collibra credentials or asset type IDs
@@ -346,16 +346,16 @@ make airflow-logs
 ### Debug Commands
 ```bash
 # Check Airflow status
-make airflow-status
+just airflow-status
 
 # View logs
-make airflow-logs
+just airflow-logs
 
 # Restart services
-make airflow-down && make airflow-up
+just airflow-down && just airflow-up
 
 # Check environment
-make airflow-validate-env
+just airflow-validate-env
 ```
 
 ## Best Practices

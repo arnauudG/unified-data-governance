@@ -48,7 +48,7 @@ The Soda Cloud API integration provides automated extraction of dataset and chec
 ### Usage
 ```bash
 # Complete workflow (recommended)
-make superset-upload-data
+just superset-upload-data
 # This automatically:
 # 1. Updates Soda data source names to match SNOWFLAKE_DATABASE
 # 2. Extracts data from Soda Cloud
@@ -56,15 +56,15 @@ make superset-upload-data
 # 4. Uploads to Superset
 
 # Individual steps
-make soda-dump           # Extract from Soda Cloud
-make organize-soda-data  # Organize data
-make superset-upload-data # Upload to Superset (includes data source name update)
+just soda-dump           # Extract from Soda Cloud
+just organize-soda-data  # Organize data
+just superset-upload-data # Upload to Superset (includes data source name update)
 
 # Database Management
-make dump-databases      # Dump all databases (Superset, Airflow, Soda data)
-make dump-superset      # Dump Superset database only
-make dump-airflow       # Dump Airflow database only
-make dump-soda          # Dump Soda data only
+just dump-databases      # Dump all databases (Superset, Airflow, Soda data)
+just dump-superset      # Dump Superset database only
+just dump-airflow       # Dump Airflow database only
+just dump-soda          # Dump Soda data only
 ```
 
 ### Features:
@@ -78,7 +78,7 @@ make dump-soda          # Dump Soda data only
 ### Usage:
 ```bash
 # Extract Soda Cloud metadata
-make soda-dump
+just soda-dump
 
 # Manual execution
 ./scripts/run_soda_dump.sh
@@ -188,16 +188,16 @@ python-dotenv
 ### Complete Environment Setup
 ```bash
 # 1. Start Airflow services
-make airflow-up
+just airflow-up
 
 # 2. Initialize Snowflake (creates tables with uppercase columns)
-make airflow-trigger-init
+just airflow-trigger-init
 
 # 3. Run data quality pipeline
-make airflow-trigger-pipeline
+just airflow-trigger-pipeline
 
 # 4. Extract Soda Cloud metadata
-make soda-dump
+just soda-dump
 ```
 
 ### Manual Script Execution

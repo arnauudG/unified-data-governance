@@ -1,0 +1,57 @@
+{
+  "data_asset_type": "SqlAlchemyDataset",
+  "expectation_suite_name": "mart.fact_orders",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_columns_to_match_ordered_list",
+      "kwargs": {
+        "column_list": [
+          "ORDER_ID",
+          "CUSTOMER_ID",
+          "ORDER_TOTAL_AMOUNT",
+          "ORDER_STATUS"
+        ]
+      },
+      "meta": {
+        "notes": {
+          "content": "Schema validation - structure matters for consumption",
+          "format": "markdown"
+        }
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {
+        "column": "ORDER_ID"
+      },
+      "meta": {
+        "notes": {
+          "content": "Uniqueness - duplicate orders = inflated revenue, wrong metrics",
+          "format": "markdown"
+        }
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "ORDER_TOTAL_AMOUNT",
+        "min_value": 0,
+        "max_value": 10000,
+        "strictly_min": true
+      },
+      "meta": {
+        "notes": {
+          "content": "Accuracy - wrong amounts = financial errors",
+          "format": "markdown"
+        }
+      }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "notes": {
+      "content": "Expectations for mart.fact_orders - Decision-driven quality checks",
+      "format": "markdown"
+    }
+  }
+}
