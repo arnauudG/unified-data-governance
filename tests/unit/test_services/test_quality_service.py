@@ -119,9 +119,8 @@ class TestQualityService:
         
         assert result is False
 
-    @patch("src.services.quality_service.pd")
-    def test_export_quality_data_success(self, mock_pd, mock_config, temp_output_dir):
-        """Test successful quality data export."""
+    def test_export_quality_data_success(self, mock_config, temp_output_dir):
+        """Test successful quality data export (uses real pandas to write CSV)."""
         mock_repo = Mock(spec=SodaRepository)
         mock_repo.get_all_datasets.return_value = [
             {"id": "1", "name": "DATASET_1"},
@@ -131,13 +130,10 @@ class TestQualityService:
             {"id": "1", "name": "CHECK_1"},
             {"id": "2", "name": "CHECK_2"},
         ]
-        
-        mock_df = MagicMock()
-        mock_pd.DataFrame.return_value = mock_df
-        
+
         service = QualityService(soda_repository=mock_repo, config=mock_config)
         files = service.export_quality_data(temp_output_dir)
-        
+
         assert "datasets" in files
         assert "checks" in files
         assert files["datasets"].exists()

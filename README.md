@@ -422,6 +422,8 @@ This triggers the `soda_pipeline_run` DAG which:
 
 The `.env` file is automatically loaded and mounted into Docker containers.
 
+**Security:** Do not commit `.env` (it is in `.gitignore`). For production, use a secrets manager or platform-specific storage (e.g. Airflow Variables/Connections) instead of a file.
+
 **Note**: The database name is parameterized via `SNOWFLAKE_DATABASE`. If not set, it defaults to `DATA PLATFORM XYZ`. All components (dbt, Soda, setup scripts) use this environment variable consistently.
 
 **Automatic Data Source Name Updates**: Soda configuration files are automatically updated to match your `SNOWFLAKE_DATABASE` when you run:
@@ -1029,6 +1031,7 @@ just airflow-logs
 - **[Contributing](CONTRIBUTING.md)** - Development setup, checks, and PR expectations
 - **[Changelog](CHANGELOG.md)** - Release history
 - **[License](LICENSE)** - MIT
+- **[Maintainer docs](docs/internal/README.md)** - Codebase review and documentation audit (for contributors)
 
 ### API Documentation
 - **[API Reference](docs/api/index.rst)** - Complete API documentation (build with `just docs-build`)

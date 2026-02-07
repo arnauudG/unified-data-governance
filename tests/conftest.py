@@ -21,31 +21,31 @@ def reset_config_singleton():
 
 
 @pytest.fixture
-def mock_config() -> Mock:
-    """Provide a mock configuration object."""
-    config = Mock(spec=Config)
-    
-    # Soda Cloud config
+def mock_config() -> MagicMock:
+    """Provide a mock configuration object with nested attributes."""
+    config = MagicMock(spec=Config)
+    # Ensure nested mocks exist so config.soda_cloud, config.collibra, etc. work
+    config.soda_cloud = MagicMock()
     config.soda_cloud.host = "https://cloud.soda.io"
     config.soda_cloud.api_key_id = "test_api_key_id"
     config.soda_cloud.api_key_secret = "test_api_key_secret"
-    
-    # Collibra config
+
+    config.collibra = MagicMock()
     config.collibra.base_url = "https://test.collibra.com"
     config.collibra.username = "test_user"
     config.collibra.password = "test_password"
-    
-    # Snowflake config
+
+    config.snowflake = MagicMock()
     config.snowflake.account = "test_account"
     config.snowflake.user = "test_user"
     config.snowflake.password = "test_password"
     config.snowflake.database = "TEST_DB"
     config.snowflake.warehouse = "TEST_WH"
     config.snowflake.schema_name = "TEST_SCHEMA"
-    
-    # Paths config
+
+    config.paths = MagicMock()
     config.paths.collibra_config_path = Path("/tmp/test_collibra_config.yml")
-    
+
     return config
 
 

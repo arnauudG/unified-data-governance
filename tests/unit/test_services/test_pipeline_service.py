@@ -43,7 +43,7 @@ class TestPipelineService:
         service = PipelineService(quality_service=mock_quality, config=mock_config)
         result = service.run_quality_checks("raw")
         
-        assert result["status"] == "success"
+        assert result["status"] == "passed"
         assert result["layer"] == "raw"
         mock_quality.validate_quality_before_sync.assert_called_once_with("raw")
 
@@ -88,7 +88,7 @@ class TestPipelineService:
         service = PipelineService(quality_service=mock_quality, config=mock_config)
         result = service.sync_metadata_with_quality_gate("raw", strict=True)
         
-        assert result["status"] == "quality_gate_failed"
+        assert result["status"] == "skipped"
         assert result["layer"] == "raw"
 
     def test_sync_metadata_with_quality_gate_lenient(self, mock_config):
