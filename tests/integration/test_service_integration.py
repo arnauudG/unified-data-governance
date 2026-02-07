@@ -3,7 +3,7 @@ Integration tests for service layer interactions.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 
 from src.services.quality_service import QualityService
 from src.services.metadata_service import MetadataService

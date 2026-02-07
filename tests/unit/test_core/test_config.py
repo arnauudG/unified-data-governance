@@ -17,14 +17,36 @@ class TestConfig:
         """Test that config can be created."""
         assert mock_config is not None
 
-    def test_config_singleton(self):
+    @patch("src.core.config.load_dotenv")
+    @patch.dict("os.environ", {
+        "SNOWFLAKE_ACCOUNT": "test_account",
+        "SNOWFLAKE_USER": "test_user",
+        "SNOWFLAKE_PASSWORD": "test_password",
+        "SODA_CLOUD_API_KEY_ID": "test_key",
+        "SODA_CLOUD_API_KEY_SECRET": "test_secret",
+        "COLLIBRA_BASE_URL": "https://test.collibra.com",
+        "COLLIBRA_USERNAME": "test_user",
+        "COLLIBRA_PASSWORD": "test_password",
+    }, clear=False)
+    def test_config_singleton(self, mock_load_dotenv):
         """Test that get_config returns singleton instance."""
         reset_config()
         config1 = get_config()
         config2 = get_config()
         assert config1 is config2
 
-    def test_reset_config(self):
+    @patch("src.core.config.load_dotenv")
+    @patch.dict("os.environ", {
+        "SNOWFLAKE_ACCOUNT": "test_account",
+        "SNOWFLAKE_USER": "test_user",
+        "SNOWFLAKE_PASSWORD": "test_password",
+        "SODA_CLOUD_API_KEY_ID": "test_key",
+        "SODA_CLOUD_API_KEY_SECRET": "test_secret",
+        "COLLIBRA_BASE_URL": "https://test.collibra.com",
+        "COLLIBRA_USERNAME": "test_user",
+        "COLLIBRA_PASSWORD": "test_password",
+    }, clear=False)
+    def test_reset_config(self, mock_load_dotenv):
         """Test that reset_config clears singleton."""
         config1 = get_config()
         reset_config()
