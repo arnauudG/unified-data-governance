@@ -72,7 +72,7 @@ The project is a **data engineering, governance, and quality integration platfor
 
 ## 5. Documentation
 
-- **README.md**: Single entrypoint with architecture, quick start, commands, troubleshooting, and links to component READMEs. “How to run & verify” section is clear.
+- **README.md**: Single entrypoint with architecture, quick start, commands, troubleshooting, and links to component READMEs. "How to run & verify" section is clear.
 - **Component READMEs**: `dbt/`, `soda/`, `airflow/`, `collibra/`, `scripts/` each have a README with structure, config, and usage.
 - **Sphinx**: `docs/conf.py` and `api/index.rst` present; toctree fixed to avoid missing pages.
 - **In-code**: Docstrings and type hints are used in `src/` and key scripts.
@@ -126,7 +126,7 @@ No issues found; previous fixes (data source quoting, config/source quoting for 
 | Done     | Align test mocks with `Config`/`PathsConfig` (`base_url`, no `soda_config_path`). |
 | Done     | Remove Superset/orphan references (justfile, pyproject, requirements_dump.txt). |
 | Done     | Fix Sphinx toctree so it only references existing docs. |
-| Low      | Align dbt project/profile name with “DATA PLATFORM XYZ” if you want naming consistency. |
+| Low      | Align dbt project/profile name with "DATA PLATFORM XYZ" if you want naming consistency. |
 | Low      | Add optional `architecture.rst` / `examples.rst` or document that main docs live in README. |
 | Low      | Consider renaming `src.core.exceptions.TimeoutError` to avoid shadowing built-in (e.g. `GovernanceTimeoutError`) if you ever import both. |
 | Info     | Document that production credentials should use a secrets manager or Airflow Variables/Connections. |

@@ -93,5 +93,6 @@ For full architecture and commands, see the main [README](README.md) and [Archit
 
 - Open an issue for bugs, feature requests, or documentation improvements.
 - For architecture or design decisions, see [Architecture Decision Records](docs/adr/README.md) if available.
+- **Maintainers:** Internal docs (codebase review, documentation audit) are in [docs/internal/](docs/internal/README.md).
 
 Thank you for contributing.

@@ -5,6 +5,8 @@
 **Scope**: All project documentation, architecture artifacts, and discoverability  
 **Auditor perspective**: Professional technical documentation standards
 
+*This document lives in `docs/internal/` for maintainers. User-facing docs are in the root and in `docs/` (Sphinx).*
+
 ---
 
 ## Implementation Summary (2026-02-07)
@@ -41,7 +43,7 @@ The project has **strong narrative and operational documentation**: a very detai
 | Asset | Present | Notes |
 |-------|---------|--------|
 | **README.md** | ✅ Yes | ~1,100 lines. Primary entrypoint: overview, architecture, diagrams, quick start, commands, troubleshooting, links to components. |
-| **CODEBASE_REVIEW.md** | ✅ Yes | Internal code/architecture review with recommendations; useful for maintainers. |
+| **CODEBASE_REVIEW.md** | ✅ Yes | Internal code/architecture review with recommendations; useful for maintainers. (Now in `docs/internal/`.) |
 | **CONTRIBUTING.md** | ✅ Yes | Development setup, checks, PR expectations. |
 | **CHANGELOG.md** | ✅ Yes | Keep a Changelog style; Unreleased and 2.1.0. |
 | **LICENSE** | ✅ Yes | MIT. |
@@ -89,7 +91,7 @@ All are present and substantive:
 | **Collibra** | `collibra/README.md` | Metadata sync, config, API reference, quality gating, troubleshooting. |
 | **Scripts** | `scripts/README.md` | test_stack, setup_snowflake, reset_snowflake, health_check, env vars. |
 
-Main README links to these under “Component Documentation.”
+Main README links to these under "Component Documentation."
 
 ### 1.5 Soda–Collibra Integration
 
@@ -102,7 +104,7 @@ This sub-project is **well documented** for its own lifecycle and deployment.
 
 ### 1.6 Examples and In-Code Documentation
 
-- **examples/basic_usage.py**: Script with docstrings and examples for config, pipeline, Soda fetch, health check. README links to it under “Usage Examples.”
+- **examples/basic_usage.py**: Script with docstrings and examples for config, pipeline, Soda fetch, health check. README links to it under "Usage Examples."
 - **src/core/config.py**: Module and class docstrings (e.g. `SnowflakeConfig`, `SodaCloudConfig`) and type hints.
 - **Napoleon** is enabled in Sphinx, so when API .rst files exist, Google/NumPy-style docstrings will be used.
 
@@ -110,7 +112,7 @@ This sub-project is **well documented** for its own lifecycle and deployment.
 
 ## 2. Documentation Strengths
 
-1. **Single entrypoint**: README is the main place for overview, runbook, and links; “How to Run & Verify” and “Command Reference” are clear.
+1. **Single entrypoint**: README is the main place for overview, runbook, and links; "How to Run & Verify" and "Command Reference" are clear.
 2. **Architecture in README**: Clean architecture, design patterns (Repository, Service, Factory, Singleton), and data flow are explained with ASCII and one Mermaid diagram.
 3. **Component READMEs**: Each major area (Airflow, dbt, Soda, Collibra, scripts) has its own README with structure, config, and troubleshooting.
 4. **Operational clarity**: Env vars, justfile targets, DAG names, and guardrail behavior (lenient/strict) are documented.
@@ -140,7 +142,7 @@ This sub-project is **well documented** for its own lifecycle and deployment.
 
 **Recommendations:**
 
-- **Option A (minimal):** Remove the four toctree entries so the build is clean and the “API Reference” page only contains the current index text (and optionally a single “see README and code” note).
+- **Option A (minimal):** Remove the four toctree entries so the build is clean and the "API Reference" page only contains the current index text (and optionally a single "see README and code" note).
 - **Option B (full):** Add `docs/api/core.rst`, `repositories.rst`, `services.rst`, `utils.rst`, each with appropriate `.. automodule:: src.*` (e.g. `src.core.config`, `src.repositories.soda_repository`, etc.) so Sphinx generates real API docs from docstrings.
 
 ### 3.3 docs/_static
@@ -165,7 +167,7 @@ This sub-project is **well documented** for its own lifecycle and deployment.
 
 **Gap**: No CHANGELOG or release notes.
 
-**Recommendation:** Add **CHANGELOG.md** (e.g. Keep a Changelog style) and update it on releases. Even a single “Unreleased” and “2.1.0” section helps users and maintainers.
+**Recommendation:** Add **CHANGELOG.md** (e.g. Keep a Changelog style) and update it on releases. Even a single "Unreleased" and "2.1.0" section helps users and maintainers.
 
 ### 3.6 LICENSE
 
@@ -181,7 +183,7 @@ This sub-project is **well documented** for its own lifecycle and deployment.
 
 ### 3.8 Examples in Sphinx
 
-**Gap**: README points to `examples/basic_usage.py`; there is no “Examples” page in Sphinx.
+**Gap**: README points to `examples/basic_usage.py`; there is no "Examples" page in Sphinx.
 
 **Recommendation:** Add **docs/examples.rst** that briefly describes the examples and either includes a code block from `basic_usage.py` or links to the file. Add `examples` to the main toctree in `docs/index.rst`.
 
