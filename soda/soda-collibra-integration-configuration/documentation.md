@@ -875,3 +875,7 @@ For issues and questions:
 3. Review the performance metrics for bottlenecks
 4. Consult the unit tests for usage examples
 5. Contact support@soda.io for additional help
+
+---
+
+**Part of**: Unified Data Governance Platform. **Last updated**: February 7, 2026.

@@ -73,5 +73,8 @@ See `testing/README.md` for detailed testing instructions.
 ### Scope
 - Descope rows_passed, rows_failed and row_count metrics until diagnostic warehouse is available
 
+---
 
+**Part of**: Unified Data Governance Platform. See repository root README for platform overview.  
+**Last updated**: February 7, 2026
 

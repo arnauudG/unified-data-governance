@@ -1,6 +1,6 @@
 # Codebase Review — Unified Data Governance Platform
 
-**Review date**: February 2026  
+**Review date**: February 2026 · **Last updated**: February 7, 2026  
 **Scope**: Full project (src/, tests/, airflow/, dbt/, soda/, collibra/, scripts/, docs/)
 
 ---

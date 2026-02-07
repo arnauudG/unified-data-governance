@@ -421,6 +421,6 @@ just quality-check     # Run all quality checks
 
 ---
 
-**Last Updated**: February 6, 2026  
+**Last Updated**: February 7, 2026  
 **Version**: 2.1.0  
 **Airflow Version**: 2.8+

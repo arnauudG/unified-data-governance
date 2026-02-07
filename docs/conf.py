@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Unified Data Governance Platform"
 copyright = "2026, Data Engineering Team"
 author = "Data Engineering Team"
-release = "0.1.0"
+release = "2.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

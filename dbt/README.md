@@ -262,6 +262,6 @@ The project includes lineage metadata configuration:
 
 ---
 
-**Last Updated**: February 6, 2026  
+**Last Updated**: February 7, 2026  
 **Version**: 2.1.0  
 **dbt Version**: 1.10.11

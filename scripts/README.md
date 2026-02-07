@@ -300,5 +300,5 @@ Scripts use the Repository pattern for clean API access:
 
 ---
 
-**Last Updated**: February 6, 2026  
+**Last Updated**: February 7, 2026  
 **Version**: 2.1.0

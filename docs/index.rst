@@ -36,6 +36,12 @@ Quick Start
    pipeline = PipelineService(config=config)
    result = pipeline.run_complete_pipeline(layers=["raw", "staging"])
 
+Maintainer documentation
+-------------------------
+
+Internal docs (codebase review, documentation audit) are in ``docs/internal/``.
+See the root ``CONTRIBUTING.md`` for the link.
+
 Indices and tables
 ==================
 
