@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soda-collibra-integration-debug
+  namespace: soda-collibra-integration-<customer-name>
+  labels:
+    app: soda-collibra-integration-debug
+    version: optimized
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soda-collibra-integration-debug
+  template:
+    metadata:
+      labels:
+        app: soda-collibra-integration-debug
+        version: optimized
+    spec:
+      containers:
+      - name: soda-collibra-integration
+        image: soda-collibra-integration:latest  # Replace with your image
+        command: ["sleep", "infinity"]  # Keep container running for debugging
+        env:
+        - name: SODA_API_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: soda-collibra-integration-envs
+              key: SODA_API_KEY_ID
+        - name: SODA_API_KEY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: soda-collibra-integration-envs
+              key: SODA_API_KEY_SECRET
+        - name: COLLIBRA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: soda-collibra-integration-envs
+              key: COLLIBRA_USERNAME
+        - name: COLLIBRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: soda-collibra-integration-envs
+              key: COLLIBRA_PASSWORD
+        - name: COLLIBRA_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: soda-collibra-integration-envs
+              key: COLLIBRA_BASE_URL
+              optional: true
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        resources:
+          requests:
+            memory: "512Mi"  # Increased for optimized version
+            cpu: "500m"
+          limits:
+            memory: "1Gi"    # Increased for better performance
+            cpu: "1000m"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: soda-collibra-integration-config 

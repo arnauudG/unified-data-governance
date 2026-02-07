@@ -2,7 +2,7 @@
 """
 Reset Snowflake environment for Data Governance Platform project.
 
-Drops and recreates the database (from SNOWFLAKE_DATABASE env var, default: DATA_GOVERNANCE_PLATFORM) to start from a clean state.
+Drops and recreates the database (from SNOWFLAKE_DATABASE env var, default: DATA PLATFORM XYZ) to start from a clean state.
 
 Usage:
   python3 scripts/setup/reset_snowflake.py [--force]
@@ -56,13 +56,15 @@ def connect_snowflake():
 
 def reset_database(conn):
     # Get database name from environment variable
-    database_name = os.getenv("SNOWFLAKE_DATABASE", "DATA_GOVERNANCE_PLATFORM")
+    database_name = os.getenv("SNOWFLAKE_DATABASE", "DATA PLATFORM XYZ")
+    # Quote database name if it contains spaces or special characters
+    quoted_db_name = f'"{database_name}"' if ' ' in database_name or '-' in database_name else database_name
     cur = conn.cursor()
     try:
         logger.info(f"Dropping database {database_name} if exists (cascade)...")
-        cur.execute(f"DROP DATABASE IF EXISTS {database_name} CASCADE")
+        cur.execute(f"DROP DATABASE IF EXISTS {quoted_db_name} CASCADE")
         logger.info(f"Creating database {database_name}...")
-        cur.execute(f"CREATE DATABASE {database_name}")
+        cur.execute(f"CREATE DATABASE {quoted_db_name}")
         logger.info("Reset complete.")
     finally:
         cur.close()
@@ -73,7 +75,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Do not prompt for confirmation")
     args = parser.parse_args()
 
-    database_name = os.getenv("SNOWFLAKE_DATABASE", "DATA_GOVERNANCE_PLATFORM")
+    database_name = os.getenv("SNOWFLAKE_DATABASE", "DATA PLATFORM XYZ")
     if not args.force:
         reply = input(f"This will DROP the {database_name} database. Continue? [y/N]: ").strip().lower()
         if reply not in ("y", "yes"):

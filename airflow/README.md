@@ -116,7 +116,7 @@ just airflow-up
 ```
 
 ### Access Airflow UI
-- URL: http://localhost:8080
+- URL: http://localhost:8081
 - Username: admin
 - Password: admin
 
@@ -170,7 +170,7 @@ SNOWFLAKE_ACCOUNT=your_account
 SNOWFLAKE_USER=your_user
 SNOWFLAKE_PASSWORD=your_password
 SNOWFLAKE_WAREHOUSE=COMPUTE_WH
-SNOWFLAKE_DATABASE=DATA_GOVERNANCE_PLATFORM  # Database name (default: DATA_GOVERNANCE_PLATFORM if not set)
+SNOWFLAKE_DATABASE="DATA PLATFORM XYZ"  # Database name (default: DATA PLATFORM XYZ if not set)
 SNOWFLAKE_SCHEMA=RAW
 
 # Soda Cloud Configuration
@@ -218,8 +218,7 @@ QUALITY Layer:
     quality_layer_start → [soda_scan_quality, dbt_test] → collibra_sync_quality → quality_layer_end
     (Quality monitoring → Metadata sync)
     ↓
-cleanup_artifacts → pipeline_end → superset_upload_data
-    (Visualization: Upload quality data to Superset)
+cleanup_artifacts → pipeline_end
 ```
 
 **Orchestration Philosophy**:
@@ -233,10 +232,6 @@ cleanup_artifacts → pipeline_end → superset_upload_data
 - Quality metrics → Collibra (automatic, if configured)
 - Metadata sync → Collibra (automatic, **only after quality validation**)
 - Governance assets updated with validated quality information and metadata
-- Quality data → Superset (automatic, **after pipeline completion**)
-  - Uploads latest quality metrics for visualization
-  - Requires Superset to be running (health check performed)
-  - Extracts data from Soda Cloud API and organizes it
 
 ## Data Quality Layers
 
@@ -260,20 +255,6 @@ cleanup_artifacts → pipeline_end → superset_upload_data
 - **Thresholds**: Monitoring and alerting
 - **Checks**: Cross-layer validation, trend analysis
 
-### Superset Upload Task
-
-The `superset_upload_data` task is automatically executed at the end of the pipeline:
-
-- **Purpose**: Upload quality data to Superset for visualization
-- **Health Checks**: Verifies Superset container and database are available before proceeding
-- **Workflow**:
-  1. Updates Soda data source names to match database configuration
-  2. Extracts latest data from Soda Cloud API
-  3. Organizes data (keeps only latest files)
-  4. Uploads to Superset PostgreSQL database
-- **Requirements**: Superset must be running (`just superset-up`)
-- **Failure Handling**: Task fails with clear error message if Superset is not available
-- **Manual Alternative**: Can be run manually with `just superset-upload-data`
 
 ## Monitoring & Observability
 
@@ -321,14 +302,6 @@ just airflow-logs
 - **Cause**: Schema issues, model errors, or dependency problems
 - **Solution**: Check dbt logs and model configurations
 
-#### Superset Upload Failures
-- **Cause**: Superset container not running or database not accessible
-- **Solution**: 
-  1. Start Superset: `just superset-up`
-  2. Wait for Superset to be ready (about 45 seconds)
-  3. Verify status: `just superset-status`
-  4. Check container logs: `just superset-logs`
-  5. Alternatively, run manual upload: `just superset-upload-data`
 
 #### Collibra Integration Issues
 - **Cause**: Incorrect Collibra credentials or asset type IDs
@@ -423,8 +396,31 @@ just airflow-validate-env
 - **Metadata Sync**: Automatic metadata synchronization after each pipeline layer (RAW, STAGING, MART, QUALITY)
 - **Background Sync**: Syncs triggered and complete in Collibra background
 
+## Code Quality & Testing
+
+### Testing Infrastructure
+- Comprehensive test coverage (85%+)
+- Unit tests for all components
+- Integration tests for workflows
+- Health checks for monitoring
+
+### Quality Tools
+- Type checking (mypy)
+- Linting (Ruff)
+- Code formatting (Black)
+- Security scanning (Safety)
+
+### Running Tests
+```bash
+just test              # Run all tests
+just test-coverage     # Run with coverage report
+just type-check        # Run type checking
+just lint              # Run linter
+just quality-check     # Run all quality checks
+```
+
 ---
 
-**Last Updated**: January 2025  
-**Version**: 2.0.0  
+**Last Updated**: February 6, 2026  
+**Version**: 2.1.0  
 **Airflow Version**: 2.8+

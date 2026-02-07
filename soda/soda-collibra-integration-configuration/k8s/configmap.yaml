@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soda-collibra-integration-config
+data:
+  config.yaml: |
+    collibra:
+      base_url: "https://sodadata.collibra.com/rest/2.0"
+      username: "" # Will be overridden by secret
+      password: "" # Will be overridden by secret
+      general:
+        naming_delimiter: ">"
+      asset_types:
+        table_asset_type: "00000000-0000-0000-0000-000000031007"
+        soda_check_asset_type: "00000000-0000-0000-0000-000000031107"
+        dimension_asset_type: "00000000-0000-0000-0000-000000031108"
+        column_asset_type: "00000000-0000-0000-0000-000000031008"
+      attribute_types:
+        check_evaluation_status_attribute: "00000000-0000-0000-0000-000000000238"
+        check_last_sync_date_attribute: "00000000-0000-0000-0000-000000000256"
+        check_definition_attribute: "00000000-0000-0000-0000-000000000225"
+        check_last_run_date_attribute: "01975dd9-a7b0-79fb-bb74-2c1f76402663"
+        check_cloud_url_attribute: "00000000-0000-0000-0000-000000000258"
+        check_loaded_rows_attribute: "00000000-0000-0000-0000-000000000233"
+        check_rows_failed_attribute: "00000000-0000-0000-0000-000000000237"
+        check_rows_passed_attribute: "00000000-0000-0000-0000-000000000236"
+        check_passing_fraction_attribute: "00000000-0000-0000-0000-000000000240"
+        collira_row_count_attribute: "00000000-0000-0000-0001-000500000034"
+      relation_types:
+        table_column_to_check_relation_type: "00000000-0000-0000-0000-000000007018"
+        check_to_dq_dimension_relation_type: "f7e0a26b-eed6-4ba9-9152-4a1363226640"
+      responsibilities:
+        owner_role_id: "abc-123"
+      domains:
+        data_quality_dimensions_domain: "00000000-0000-0000-0000-000000006019"
+        soda_collibra_domain_mapping: '{"Sales": "0197377f-e595-7434-82c7-3ce1499ac620"}'
+        soda_collibra_default_domain: "01975b4a-0ace-79f6-b5ec-68656ca60b11"
+
+    soda:
+      api_key_id: "" # Will be overridden by secret
+      api_key_secret: "" # Will be overridden by secret
+      base_url: "https://demo.soda.io/api/v1"
+      general:
+        filter_datasets_to_sync_to_collibra: false
+        soda_no_collibra_dataset_skip_checks: true
+      attributes:
+        soda_collibra_sync_dataset_attribute: "collibra_sync"
+        soda_collibra_domain_dataset_attribute_name: "rulebook"
+        soda_dimension_attribute_name: "dimension"
+        custom_attributes_mapping_soda_attribute_name_to_collibra_attribute_type_id: '{"description": "00000000-0000-0000-0000-000000003114", "business_impact": "01975f7b-0c04-7b98-9fb8-6635261a7c7b"}' 

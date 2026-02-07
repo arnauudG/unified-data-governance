@@ -1,0 +1,3 @@
+"""
+Soda-Collibra integration package.
+""" 

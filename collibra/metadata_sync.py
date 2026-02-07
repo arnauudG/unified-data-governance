@@ -4,90 +4,68 @@ Collibra Metadata Synchronization Module
 
 This module provides functions to trigger and monitor Collibra metadata synchronization
 for database assets and schema connections.
+
+Refactored to use Repository pattern and centralized configuration.
 """
 
-import os
+import sys
 import time
-import requests
-import logging
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Configure logging first
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Load environment variables
-# Try multiple locations: current directory, /opt/airflow (Docker), and parent directories
-env_paths = [
-    Path('/opt/airflow/.env'),  # Airflow Docker container (priority)
-    Path('.env'),  # Current directory
-    Path(__file__).parent.parent / '.env',  # Project root (if running locally)
-]
+from src.core.config import get_config
+from src.core.logging import get_logger
+from src.core.exceptions import (
+    ConfigurationError,
+    APIError,
+    TimeoutError as CoreTimeoutError,
+)
+from src.repositories.collibra_repository import CollibraRepository
+from src.core.constants import RetryConfigDefaults
 
-env_loaded = False
-for env_path in env_paths:
-    if env_path.exists():
-        load_dotenv(env_path, override=True)
-        logger.info(f"Loaded environment variables from {env_path}")
-        env_loaded = True
-        break
-
-if not env_loaded:
-    # Fallback: try default load_dotenv behavior
-    load_dotenv(override=True)
-    logger.info("Loaded environment variables using default dotenv behavior")
+logger = get_logger(__name__)
 
 
 class CollibraMetadataSync:
-    """Handles Collibra metadata synchronization operations."""
+    """
+    Handles Collibra metadata synchronization operations.
     
-    def __init__(self):
-        """Initialize Collibra client with credentials from environment."""
-        self.base_url = os.getenv('COLLIBRA_BASE_URL')
-        self.username = os.getenv('COLLIBRA_USERNAME')
-        self.password = os.getenv('COLLIBRA_PASSWORD')
+    This class wraps CollibraRepository for backward compatibility.
+    New code should use CollibraRepository or MetadataService directly.
+    """
+    
+    def __init__(self, config: Optional[Any] = None, collibra_repository: Optional[CollibraRepository] = None):
+        """
+        Initialize Collibra client with credentials from configuration.
         
-        # Debug logging
-        logger.debug(f"COLLIBRA_BASE_URL: {'SET' if self.base_url else 'NOT SET'}")
-        logger.debug(f"COLLIBRA_USERNAME: {'SET' if self.username else 'NOT SET'}")
-        logger.debug(f"COLLIBRA_PASSWORD: {'SET' if self.password else 'NOT SET'}")
+        Args:
+            config: Optional Config instance. If None, uses get_config().
+            collibra_repository: Optional CollibraRepository instance. If None, creates new one.
         
-        if not all([self.base_url, self.username, self.password]):
-            missing = []
-            if not self.base_url:
-                missing.append('COLLIBRA_BASE_URL')
-            if not self.username:
-                missing.append('COLLIBRA_USERNAME')
-            if not self.password:
-                missing.append('COLLIBRA_PASSWORD')
-            
-            raise ValueError(
-                f"Missing Collibra credentials: {', '.join(missing)}. "
-                "Please set COLLIBRA_BASE_URL, COLLIBRA_USERNAME, and COLLIBRA_PASSWORD "
-                "in your .env file or as environment variables."
-            )
+        Raises:
+            ConfigurationError: If required configuration is missing
+        """
+        if config is None:
+            config = get_config()
         
-        # Remove trailing slash from base URL if present
-        self.base_url = self.base_url.rstrip('/')
+        self.config = config
+        self.collibra_repository = collibra_repository or CollibraRepository(config=config)
         
-        # Create session for authentication
-        self.session = requests.Session()
-        self.session.auth = (self.username, self.password)
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        })
+        # Keep these for backward compatibility
+        self.base_url = config.collibra.base_url
+        self.username = config.collibra.username
+        self.password = config.collibra.password
         
         logger.info(f"Initialized Collibra client for {self.base_url}")
     
     def get_database_connection_id(self, database_id: str) -> str:
         """
         Get the database connection ID from a database asset ID.
-        
-        Uses the Collibra Catalog Database API which returns the databaseConnectionId
-        directly in the response.
         
         Args:
             database_id: The UUID of the Database asset in Collibra
@@ -96,42 +74,9 @@ class CollibraMetadataSync:
             The database connection ID
         
         Raises:
-            requests.exceptions.RequestException: If the API request fails
-            ValueError: If database connection not found
+            ConfigurationError: If database connection not found
         """
-        # Use the Catalog Database API which returns databaseConnectionId directly
-        url = f"{self.base_url}/rest/catalogDatabase/v1/databases/{database_id}"
-        
-        try:
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            
-            database = response.json()
-            # The databaseConnectionId is directly in the response
-            database_connection_id = database.get('databaseConnectionId')
-            
-            if database_connection_id:
-                logger.info(f"Found database connection ID: {database_connection_id}")
-                return database_connection_id
-            else:
-                raise ValueError(
-                    f"Database asset {database_id} does not have a databaseConnectionId. "
-                    "Please check your Collibra setup or provide database connection ID directly in config.yml."
-                )
-            
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error getting database connection: {e}")
-            if e.response is not None:
-                logger.error(f"Response: {e.response.text}")
-                if e.response.status_code == 404:
-                    raise ValueError(
-                        f"Database asset {database_id} not found in Collibra. "
-                        "Please verify the database ID in your config.yml file."
-                    )
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error getting database connection: {e}")
-            raise
+        return self.collibra_repository.get_database_connection_id(database_id)
     
     def list_schema_connections(
         self,
@@ -151,39 +96,13 @@ class CollibraMetadataSync:
         
         Returns:
             List of schema connection dictionaries
-        
-        Raises:
-            requests.exceptions.RequestException: If the API request fails
         """
-        url = f"{self.base_url}/rest/catalogDatabase/v1/schemaConnections"
-        
-        params = {
-            'databaseConnectionId': database_connection_id,
-            'limit': limit,
-            'offset': offset
-        }
-        
-        if schema_id:
-            params['schemaId'] = schema_id
-        
-        try:
-            response = self.session.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            connections = result.get('results', [])
-            
-            logger.info(f"Found {len(connections)} schema connection(s)")
-            return connections
-            
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error listing schema connections: {e}")
-            if e.response is not None:
-                logger.error(f"Response: {e.response.text}")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error listing schema connections: {e}")
-            raise
+        return self.collibra_repository.list_schema_connections(
+            database_connection_id=database_connection_id,
+            schema_id=schema_id,
+            limit=limit,
+            offset=offset
+        )
     
     def resolve_schema_connection_ids(
         self,
@@ -197,46 +116,18 @@ class CollibraMetadataSync:
         Args:
             database_id: The UUID of the Database asset
             schema_asset_ids: List of schema asset UUIDs
-            database_connection_id: Optional database connection ID (if not provided, will be resolved)
+            database_connection_id: Optional database connection ID (ignored, will be resolved)
         
         Returns:
             List of schema connection UUIDs
         
         Raises:
-            ValueError: If schema connections cannot be resolved
+            ConfigurationError: If schema connections cannot be resolved
         """
-        # Get the database connection ID if not provided
-        if not database_connection_id:
-            database_connection_id = self.get_database_connection_id(database_id)
-        
-        # Then, find schema connection IDs for each schema asset ID
-        connection_ids = []
-        
-        for schema_asset_id in schema_asset_ids:
-            connections = self.list_schema_connections(
-                database_connection_id=database_connection_id,
-                schema_id=schema_asset_id
-            )
-            
-            if not connections:
-                raise ValueError(
-                    f"Could not find schema connection for schema asset {schema_asset_id}. "
-                    "Make sure the schema has been synchronized at least once."
-                )
-            
-            # Get the connection ID from the first matching result
-            connection_id = connections[0].get('id')
-            if not connection_id:
-                raise ValueError(
-                    f"Schema connection for {schema_asset_id} has no ID"
-                )
-            
-            connection_ids.append(connection_id)
-            logger.info(
-                f"Resolved schema asset {schema_asset_id} to connection {connection_id}"
-            )
-        
-        return connection_ids
+        return self.collibra_repository.resolve_schema_connection_ids(
+            database_id=database_id,
+            schema_asset_ids=schema_asset_ids
+        )
     
     def trigger_metadata_sync(
         self,
@@ -253,92 +144,11 @@ class CollibraMetadataSync:
         
         Returns:
             Dict containing the job ID and response details
-        
-        Raises:
-            requests.exceptions.RequestException: If the API request fails
         """
-        url = f"{self.base_url}/rest/catalogDatabase/v1/databases/{database_id}/synchronizeMetadata"
-        
-        # Prepare request body
-        body = {}
-        if schema_connection_ids:
-            body["schemaConnectionIds"] = schema_connection_ids
-        
-        logger.info(f"Triggering metadata sync for database {database_id}")
-        if schema_connection_ids:
-            logger.info(f"Synchronizing schemas: {', '.join(schema_connection_ids)}")
-        else:
-            logger.info("Synchronizing all schemas with rules defined")
-        
-        try:
-            response = self.session.post(url, json=body, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            job_id = result.get('jobId') or result.get('id')  # Try both 'jobId' and 'id'
-            
-            # Log the full response for debugging
-            logger.debug(f"Full API response: {result}")
-            
-            if job_id:
-                logger.info(f"Metadata sync triggered successfully. Job ID: {job_id}")
-            else:
-                # Some Collibra endpoints may not return a job ID immediately
-                # The sync might be asynchronous and we need to check status differently
-                logger.warning(
-                    f"Metadata sync triggered but no job ID returned. "
-                    f"Response: {result}. Sync may be running asynchronously."
-                )
-            
-            return {
-                'jobId': job_id,
-                'databaseId': database_id,
-                'schemaConnectionIds': schema_connection_ids or [],
-                'status': 'triggered' if job_id else 'triggered_no_job_id',
-                'response': result
-            }
-            
-        except requests.exceptions.HTTPError as e:
-            # Handle 409 Conflict: sync already in progress
-            if e.response is not None and e.response.status_code == 409:
-                error_data = {}
-                try:
-                    error_data = e.response.json()
-                except:
-                    pass
-                
-                error_code = error_data.get('errorCode', '')
-                user_message = error_data.get('userMessage', '')
-                
-                if 'already being processed' in user_message.lower() or error_code == 'assetAlreadyInProcess':
-                    logger.warning(
-                        f"Metadata sync already in progress for database {database_id}. "
-                        "This may be due to a previous sync still running or a retry. "
-                        "Treating as success - sync will complete in background."
-                    )
-                    # Return a success response indicating sync is already running
-                    return {
-                        'jobId': None,  # We don't have a job ID for the existing sync
-                        'databaseId': database_id,
-                        'schemaConnectionIds': schema_connection_ids or [],
-                        'status': 'already_running',
-                        'message': 'Sync already in progress - will complete in background',
-                        'response': error_data
-                    }
-                else:
-                    # Other 409 errors - log and raise
-                    logger.error(f"409 Conflict (unexpected): {user_message}")
-                    logger.error(f"Response: {e.response.text}")
-                    raise
-            else:
-                # Other HTTP errors - log and raise
-                logger.error(f"HTTP error triggering metadata sync: {e}")
-                if e.response is not None:
-                    logger.error(f"Response: {e.response.text}")
-                raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error triggering metadata sync: {e}")
-            raise
+        return self.collibra_repository.trigger_metadata_sync(
+            database_id=database_id,
+            schema_connection_ids=schema_connection_ids
+        )
     
     def get_job_status(self, job_id: str) -> Dict:
         """
@@ -351,80 +161,15 @@ class CollibraMetadataSync:
             Dict containing job status information
         
         Raises:
-            requests.exceptions.RequestException: If the API request fails
+            ConfigurationError: If job status cannot be retrieved
         """
-        # Try different possible endpoints for job status
-        possible_urls = [
-            f"{self.base_url}/rest/jobs/{job_id}",
-            f"{self.base_url}/rest/job/{job_id}",
-            f"{self.base_url}/rest/catalogDatabase/v1/jobs/{job_id}",
-        ]
-        
-        last_error = None
-        for url in possible_urls:
-            try:
-                logger.debug(f"Trying to get job status from: {url}")
-                response = self.session.get(url, timeout=30)
-                response.raise_for_status()
-                
-                # Check if response is actually JSON
-                content_type = response.headers.get('Content-Type', '')
-                if 'application/json' not in content_type:
-                    logger.warning(
-                        f"Response is not JSON (Content-Type: {content_type}). "
-                        f"Response text (first 500 chars): {response.text[:500]}"
-                    )
-                    # Try next URL
-                    continue
-                
-                # Try to parse JSON
-                try:
-                    result = response.json()
-                    logger.debug(f"Successfully parsed job status from {url}: {result}")
-                    return result
-                except ValueError as json_error:
-                    logger.warning(
-                        f"Failed to parse JSON from {url}: {json_error}. "
-                        f"Response text (first 500 chars): {response.text[:500]}"
-                    )
-                    # Try next URL
-                    continue
-                    
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None:
-                    status_code = e.response.status_code
-                    if status_code == 404:
-                        # Job endpoint not found, try next URL
-                        logger.debug(f"404 Not Found for {url}, trying next endpoint...")
-                        last_error = e
-                        continue
-                    else:
-                        logger.error(f"HTTP error getting job status from {url}: {e}")
-                        logger.error(f"Response: {e.response.text[:500] if e.response.text else 'No response text'}")
-                        last_error = e
-                        continue
-                else:
-                    last_error = e
-                    continue
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Request error getting job status from {url}: {e}")
-                last_error = e
-                continue
-        
-        # If we get here, all URLs failed
-        if last_error:
-            raise last_error
-        else:
-            raise ValueError(
-                f"Could not get job status for {job_id} from any known endpoint. "
-                "The job may be running but status tracking is not available."
-            )
+        return self.collibra_repository.get_job_status(job_id)
     
     def wait_for_job_completion(
         self,
         job_id: str,
-        max_wait_time: int = 3600,
-        poll_interval: int = 10
+        max_wait_time: int = RetryConfigDefaults.MAX_WAIT_TIME,
+        poll_interval: int = RetryConfigDefaults.POLL_INTERVAL
     ) -> Dict:
         """
         Wait for a job to complete and return the final status.
@@ -450,7 +195,7 @@ class CollibraMetadataSync:
             elapsed_time = time.time() - start_time
             
             if elapsed_time > max_wait_time:
-                raise TimeoutError(
+                raise CoreTimeoutError(
                     f"Job {job_id} did not complete within {max_wait_time} seconds"
                 )
             
@@ -473,7 +218,7 @@ class CollibraMetadataSync:
                 elif job_status in ['CANCELLED', 'CANCELED']:
                     raise RuntimeError(f"Job {job_id} was cancelled")
                 
-            except (ValueError, requests.exceptions.RequestException) as e:
+            except (ValueError, APIError, ConfigurationError) as e:
                 consecutive_errors += 1
                 logger.warning(
                     f"Error getting job status (attempt {consecutive_errors}/{max_consecutive_errors}): {e}"
@@ -503,8 +248,8 @@ class CollibraMetadataSync:
         database_id: str,
         schema_connection_ids: Optional[List[str]] = None,
         schema_asset_ids: Optional[List[str]] = None,
-        max_wait_time: int = 3600,
-        poll_interval: int = 10
+        max_wait_time: int = RetryConfigDefaults.MAX_WAIT_TIME,
+        poll_interval: int = RetryConfigDefaults.POLL_INTERVAL
     ) -> Dict:
         """
         Trigger metadata synchronization and wait for completion.

@@ -3,8 +3,10 @@ version: 2
 sources:
   - name: raw
     description: "Raw data layer - Bronze layer containing unprocessed data"
-    database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA_GOVERNANCE_PLATFORM') }}"
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA PLATFORM XYZ') }}"
     schema: RAW
+    quoting:
+      database: true  # Required for database names with spaces
     tables:
       - name: CUSTOMERS
         description: "Raw customer data with potential data quality issues"

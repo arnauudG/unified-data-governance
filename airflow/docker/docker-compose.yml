@@ -18,7 +18,7 @@ services:
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
       - AIRFLOW__WEBSERVER__SECRET_KEY=your-secret-key-here
-      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8080
+      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8081
       - AIRFLOW__WEBSERVER__WEB_SERVER_HOST=0.0.0.0
       - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8080
       - AIRFLOW__LOGGING__REMOTE_LOGGING=False
@@ -38,7 +38,7 @@ services:
       - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD}
       - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
       - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
-      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA_GOVERNANCE_PLATFORM}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA PLATFORM XYZ}
       - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-RAW}
       # Soda Cloud connection
       - SODA_CLOUD_API_KEY_ID=${SODA_CLOUD_API_KEY_ID}
@@ -55,11 +55,12 @@ services:
       - ../../dbt:/opt/airflow/dbt
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
+      - ../../src:/opt/airflow/src  # Core source code module
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs
     ports:
-      - "8080:8080"
+      - "8081:8080"  # 8081 to avoid conflict with collibra-mcp-server on 8080
     command: webserver
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
@@ -92,7 +93,7 @@ services:
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
       - AIRFLOW__WEBSERVER__SECRET_KEY=your-secret-key-here
-      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8080
+      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8081
       - AIRFLOW__WEBSERVER__WEB_SERVER_HOST=0.0.0.0
       - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8080
       - AIRFLOW__LOGGING__REMOTE_LOGGING=False
@@ -106,7 +107,7 @@ services:
       - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD}
       - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
       - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
-      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA_GOVERNANCE_PLATFORM}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA PLATFORM XYZ}
       - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-RAW}
       # Soda Cloud connection
       - SODA_CLOUD_API_KEY_ID=${SODA_CLOUD_API_KEY_ID}
@@ -123,6 +124,7 @@ services:
       - ../../dbt:/opt/airflow/dbt
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
+      - ../../src:/opt/airflow/src  # Core source code module
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs
@@ -154,7 +156,7 @@ services:
       - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
       - AIRFLOW__WEBSERVER__SECRET_KEY=your-secret-key-here
-      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8080
+      - AIRFLOW__WEBSERVER__BASE_URL=http://localhost:8081
       - _AIRFLOW_DB_UPGRADE=true
       - _AIRFLOW_WWW_USER_CREATE=true
       - _AIRFLOW_WWW_USER_USERNAME=admin
@@ -169,7 +171,7 @@ services:
       - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD}
       - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
       - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
-      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA_GOVERNANCE_PLATFORM}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-DATA PLATFORM XYZ}
       - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-RAW}
       # Soda Cloud connection
       - SODA_CLOUD_API_KEY_ID=${SODA_CLOUD_API_KEY_ID}
@@ -186,6 +188,7 @@ services:
       - ../../dbt:/opt/airflow/dbt
       - ../../soda:/opt/airflow/soda
       - ../../collibra:/opt/airflow/collibra
+      - ../../src:/opt/airflow/src  # Core source code module
       - ../../.env:/opt/airflow/.env  # Root .env file mounted for source .env commands
       - ./validate_env.sh:/opt/airflow/validate_env.sh
       - ./airflow-logs:/opt/airflow/logs

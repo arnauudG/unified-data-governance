@@ -219,3 +219,27 @@ QUALITY Layer:
 
 This ensures Collibra only syncs validated data, making it a historical record of accepted states.
 
+## Code Quality & Architecture
+
+### Repository Pattern
+The Collibra integration uses the Repository pattern:
+- `CollibraRepository` handles all API calls
+- Automatic retry logic
+- Comprehensive error handling
+- Job status tracking
+
+### Service Layer
+- `MetadataService` orchestrates metadata synchronization
+- Clean separation of concerns
+- Dependency injection for testability
+
+### Testing
+- Comprehensive test coverage
+- Mock-based testing
+- Error scenario handling
+
+---
+
+**Last Updated**: February 6, 2026  
+**Version**: 2.1.0
+

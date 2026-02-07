@@ -29,317 +29,6 @@ from soda.helpers import get_data_source_name
 BASH_PREFIX = "cd '/opt/airflow' && source .env && "
 
 
-def upload_to_superset(**context):
-    """
-    Upload Soda data to Superset database.
-    
-    This function orchestrates the complete Superset upload workflow:
-    1. Checks if Superset is running and accessible
-    2. Updates Soda data source names to match SNOWFLAKE_DATABASE
-    3. Extracts data from Soda Cloud API
-    4. Organizes the data (keeps only latest files)
-    5. Uploads to Superset PostgreSQL database
-    
-    Returns:
-        None (raises exception on failure)
-    """
-    import subprocess
-    import sys
-    from pathlib import Path
-    
-    project_root = Path("/opt/airflow")
-    
-    print("🔄 Starting Superset upload workflow...")
-    
-    # Step 0: Check if Superset is running
-    print("\n0️⃣  Checking Superset availability...")
-    superset_available = False
-    
-    # Check 1: Verify Superset HTTP endpoint is accessible (most reliable)
-    try:
-        import urllib.request
-        import urllib.error
-        # Try connecting to Superset health endpoint via container name (same network)
-        for url in ['http://superset-app:8088/health', 'http://localhost:8089/health']:
-            try:
-                req = urllib.request.Request(url, method='GET')
-                req.add_header('User-Agent', 'Airflow-Superset-Check')
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    if response.status == 200:
-                        print(f"✅ Superset HTTP endpoint is accessible at {url}")
-                        superset_available = True
-                        break
-            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
-                continue
-        if not superset_available:
-            print("⚠️  Superset HTTP endpoint not accessible")
-    except Exception as e:
-        print(f"⚠️  Could not check HTTP endpoint: {e}")
-    
-    # Check 2: Verify Superset database is accessible (fallback)
-    if not superset_available:
-        try:
-            import psycopg2
-            db_config = {
-                'host': 'superset-db',
-                'port': 5432,
-                'database': 'superset',
-                'user': 'superset',
-                'password': 'superset',
-                'connect_timeout': 5
-            }
-            # Try alternative hostnames
-            for host in ['superset-db', 'superset-postgres']:
-                try:
-                    test_config = db_config.copy()
-                    test_config['host'] = host
-                    conn = psycopg2.connect(**test_config)
-                    conn.close()
-                    print(f"✅ Superset database is accessible at {host}")
-                    superset_available = True
-                    break
-                except psycopg2.Error:
-                    continue
-        except ImportError:
-            print("⚠️  psycopg2 not available, skipping database check")
-        except Exception as e:
-            print(f"⚠️  Could not check database: {e}")
-    
-    # Check 3: Verify Superset container is running (last resort, may not work from inside container)
-    if not superset_available:
-        try:
-            check_container = subprocess.run(
-                ["docker", "ps", "--filter", "name=superset-app", "--format", "{{.Names}}"],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=5
-            )
-            if check_container.returncode == 0 and "superset-app" in check_container.stdout:
-                print("✅ Superset container is running (but endpoint not accessible)")
-                # Don't set superset_available = True here, as we can't actually connect
-            else:
-                print("⚠️  Superset container 'superset-app' not found in running containers")
-        except Exception as e:
-            print(f"⚠️  Could not check container status: {e}")
-    
-    if not superset_available:
-        error_msg = """
-❌ Superset is not available
-
-Superset must be running before uploading data. Please:
-   1. Start Superset: make superset-up
-   2. Wait for Superset to be ready (about 45 seconds)
-   3. Verify status: make superset-status
-   4. Then re-run the pipeline
-
-Alternatively, you can skip this task or run the upload manually:
-   make superset-upload-data
-"""
-        print(error_msg)
-        raise Exception("Superset is not available. Start Superset with 'make superset-up' before running the pipeline.")
-    
-    print("✅ Superset is available and ready for upload")
-    
-    # Step 1: Update data source names
-    print("\n1️⃣  Updating Soda data source names...")
-    try:
-        update_script = project_root / "soda" / "update_data_source_names.py"
-        result = subprocess.run(
-            [sys.executable, str(update_script)],
-            cwd=str(project_root),
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        if result.returncode == 0:
-            print("✅ Data source names updated successfully")
-        else:
-            print(f"⚠️  Warning: Could not update data source names: {result.stderr}")
-    except Exception as e:
-        print(f"⚠️  Warning: Error updating data source names: {e}")
-    
-    # Step 2: Extract data from Soda Cloud
-    print("\n2️⃣  Extracting data from Soda Cloud...")
-    print("⏳ This may take a few minutes depending on data volume...")
-    print("📡 Fetching data from Soda Cloud API (this will show progress as it runs)...")
-    try:
-        dump_script = project_root / "scripts" / "soda_dump_api.py"
-        # Use Popen to stream output in real-time instead of capturing it
-        import sys as sys_module
-        process = subprocess.Popen(
-            [sys.executable, str(dump_script)],
-            cwd=str(project_root),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # Line buffered
-            universal_newlines=True
-        )
-        
-        # Stream output line by line
-        for line in process.stdout:
-            print(line.rstrip())
-            sys.stdout.flush()  # Ensure immediate output
-        
-        # Wait for process to complete and get return code
-        return_code = process.wait()
-        
-        if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, str(dump_script))
-        
-        print("✅ Data extracted from Soda Cloud")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error extracting data from Soda Cloud (exit code: {e.returncode})")
-        raise
-    except Exception as e:
-        print(f"❌ Unexpected error during Soda Cloud extraction: {e}")
-        raise
-    
-    # Step 3: Organize data
-    print("\n3️⃣  Organizing data...")
-    try:
-        organize_script = project_root / "scripts" / "organize_soda_data.py"
-        # Stream output in real-time
-        process = subprocess.Popen(
-            [sys.executable, str(organize_script)],
-            cwd=str(project_root),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        # Stream output line by line
-        for line in process.stdout:
-            print(line.rstrip())
-            sys.stdout.flush()
-        
-        return_code = process.wait()
-        
-        if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, str(organize_script))
-        
-        print("✅ Data organized successfully")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error organizing data (exit code: {e.returncode})")
-        raise
-    except Exception as e:
-        print(f"❌ Unexpected error during data organization: {e}")
-        raise
-    
-    # Step 4: Upload to Superset
-    print("\n4️⃣  Uploading to Superset...")
-    try:
-        # Copy upload script to superset/data directory
-        upload_script_src = project_root / "scripts" / "upload_soda_data_docker.py"
-        upload_script_dst = project_root / "superset" / "data" / "upload_soda_data_docker.py"
-        
-        if upload_script_src.exists():
-            import shutil
-            upload_script_dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(upload_script_src, upload_script_dst)
-            print(f"✅ Copied upload script to {upload_script_dst}")
-        
-        # Execute upload script in Superset container
-        # Try multiple approaches to upload data
-        upload_script_path = "/app/soda_data/upload_soda_data_docker.py"
-        
-        # Approach 1: Try docker exec with correct container name
-        # Container name from superset/docker-compose.yml is "superset-app"
-        docker_cmd = [
-            "docker", "exec", "superset-app",
-            "python", upload_script_path
-        ]
-        
-        result = subprocess.run(
-            docker_cmd,
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        
-        if result.returncode == 0:
-            print("✅ Data uploaded to Superset successfully (via docker exec)")
-            if result.stdout:
-                print(result.stdout)
-        else:
-            # Approach 2: Try direct database connection from Airflow
-            # This works if containers are on the same Docker network
-            print("⚠️  Docker exec failed, trying direct database connection...")
-            try:
-                # Import and run the upload script directly
-                # Modify DB config to connect from Airflow container
-                sys.path.insert(0, str(project_root / "scripts"))
-                try:
-                    from upload_soda_data_docker import main as upload_main, DB_CONFIG
-                    # Update DB config for Airflow container network access
-                    # If Superset DB is accessible, use 'superset-db' hostname
-                    # Otherwise, try 'superset-postgres' (container name)
-                    import psycopg2
-                    
-                    # Try connecting with different hostnames
-                    for host in ['superset-db', 'superset-postgres', 'localhost']:
-                        try:
-                            test_config = DB_CONFIG.copy()
-                            test_config['host'] = host
-                            conn = psycopg2.connect(**test_config)
-                            conn.close()
-                            print(f"✅ Found Superset database at {host}")
-                            
-                            # Update the script's DB config and run
-                            import upload_soda_data_docker as upload_module
-                            upload_module.DB_CONFIG['host'] = host
-                            # Use Airflow container path for data directory
-                            data_dir = str(project_root / "superset" / "data")
-                            upload_main(data_dir=data_dir)
-                            print("✅ Data uploaded to Superset successfully (direct connection)")
-                            break
-                        except psycopg2.Error:
-                            continue
-                    else:
-                        raise Exception("Could not connect to Superset database from any host")
-                        
-                except ImportError:
-                    # If import fails, try running as subprocess with data directory argument
-                    upload_script = project_root / "scripts" / "upload_soda_data_docker.py"
-                    data_dir = str(project_root / "superset" / "data")
-                    result2 = subprocess.run(
-                        [sys.executable, str(upload_script), "--data-dir", data_dir],
-                        cwd=str(project_root),
-                        capture_output=True,
-                        text=True,
-                        check=True
-                    )
-                    print("✅ Data uploaded to Superset successfully (subprocess)")
-                    if result2.stdout:
-                        print(result2.stdout)
-            except Exception as e:
-                error_msg = f"""
-❌ Failed to upload data to Superset
-
-Error: {e}
-Docker exec error: {result.stderr}
-
-💡 Troubleshooting:
-   1. Ensure Superset is running: make superset-up
-   2. Check Superset status: make superset-status
-   3. Verify containers are on the same Docker network
-   4. Try manual upload: make superset-upload-data
-
-Note: This task will fail if Superset is not available.
-      Start Superset before running the pipeline, or skip this task.
-"""
-                print(error_msg)
-                raise Exception(f"Superset upload failed: {e}. Ensure Superset is running.")
-        
-    except Exception as e:
-        print(f"❌ Error uploading to Superset: {e}")
-        raise
-    
-    print("\n✅ Superset upload workflow completed successfully!")
-
 # Default arguments
 default_args = {
     'owner': 'data-team',
@@ -409,7 +98,7 @@ with DAG(
     
     soda_scan_raw = BashOperator(
         task_id="soda_scan_raw",
-        bash_command=BASH_PREFIX + f"soda scan -d {data_source_raw} -c soda/configuration/configuration_raw.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/raw",
+        bash_command=BASH_PREFIX + f"soda scan -d '{data_source_raw}' -c soda/configuration/configuration_raw.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/raw",
         doc_md="""
         **RAW Layer Quality Checks - STRICT MODE**
         
@@ -471,7 +160,7 @@ with DAG(
 
     soda_scan_staging = BashOperator(
         task_id="soda_scan_staging",
-        bash_command=BASH_PREFIX + f"soda scan -d {data_source_staging} -c soda/configuration/configuration_staging.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/staging || true",
+        bash_command=BASH_PREFIX + f"soda scan -d '{data_source_staging}' -c soda/configuration/configuration_staging.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/staging || true",
         doc_md="""
         **STAGING Layer Quality Checks - Validation Phase**
         
@@ -532,7 +221,7 @@ with DAG(
 
     soda_scan_mart = BashOperator(
         task_id="soda_scan_mart",
-        bash_command=BASH_PREFIX + f"soda scan -d {data_source_mart} -c soda/configuration/configuration_mart.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/mart || true",
+        bash_command=BASH_PREFIX + f"soda scan -d '{data_source_mart}' -c soda/configuration/configuration_mart.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/mart || true",
         doc_md="""
         **MART Layer Quality Checks - LENIENT MODE**
         
@@ -581,7 +270,7 @@ with DAG(
 
     soda_scan_quality = BashOperator(
         task_id="soda_scan_quality",
-        bash_command=BASH_PREFIX + f"soda scan -d {data_source_quality} -c soda/configuration/configuration_quality.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/quality || true",
+        bash_command=BASH_PREFIX + f"soda scan -d '{data_source_quality}' -c soda/configuration/configuration_quality.yml -T soda/checks/templates/data_quality_templates.yml soda/checks/quality || true",
         doc_md="""
         **QUALITY Layer Monitoring**
         
@@ -649,31 +338,6 @@ with DAG(
     )
     
     # =============================================================================
-    # SUPERSET UPLOAD
-    # =============================================================================
-    
-    superset_upload = PythonOperator(
-        task_id="superset_upload_data",
-        python_callable=upload_to_superset,
-        doc_md="""
-        **Upload Soda Data to Superset**
-        
-        This task completes the data visualization workflow by:
-        1. Updating Soda data source names to match database configuration
-        2. Extracting latest data from Soda Cloud API
-        3. Organizing data (keeping only latest files)
-        4. Uploading to Superset PostgreSQL database for visualization
-        
-        The uploaded data is available in Superset tables:
-        - `soda.datasets_latest` - Latest dataset information
-        - `soda.checks_latest` - Latest check results
-        - `soda.analysis_summary` - Analysis summary data
-        
-        **Note**: This task requires Superset to be running and accessible.
-        """,
-    )
-
-    # =============================================================================
     # TASK DEPENDENCIES - QUALITY-GATED METADATA SYNC
     # =============================================================================
     
@@ -688,4 +352,4 @@ with DAG(
     
     # Quality Layer: Final monitoring → Metadata sync (gated)
     mart_layer_end >> quality_layer_start >> [soda_scan_quality, dbt_test] >> collibra_sync_quality >> quality_layer_end
-    quality_layer_end >> cleanup >> pipeline_end >> superset_upload
+    quality_layer_end >> cleanup >> pipeline_end

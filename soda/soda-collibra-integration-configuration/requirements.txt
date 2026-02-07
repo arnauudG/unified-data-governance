@@ -1,0 +1,34 @@
+# Python version requirement
+# Python 3.10+ required
+
+# Core dependencies
+requests>=2.31.0
+pydantic>=2.0.0
+pydantic-core>=2.0.0
+PyYAML>=6.0
+python-dotenv>=1.0.0
+
+# JSON handling
+simplejson>=3.19.0
+
+# Error handling and retry logic
+tenacity>=8.2.0
+
+# Standard library dependencies (included with Python)
+# - typing
+# - logging
+# - json
+# - time
+# - datetime
+# - pathlib
+# - base64
+# - json.decoder
+# - functools
+# - dataclasses
+# - concurrent.futures
+
+# Optional: Development and testing dependencies
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0
+# mypy>=1.0.0 

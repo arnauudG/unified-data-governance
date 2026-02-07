@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: soda-collibra-integration
+  namespace: soda-collibra-integration-<customer-name>
+  labels:
+    app: soda-collibra-integration
+    version: optimized
+spec:
+  schedule: "0 1 * * *"  # Every day at 1 AM
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: soda-collibra-integration
+            version: optimized
+        spec:
+          containers:
+          - name: soda-collibra-integration
+            image: 316422555988.dkr.ecr.eu-north-1.amazonaws.com/soda-collibra-integration:latest # Replace with your image
+            # Use default command for normal operation, or add --verbose for more logging
+            # args: ["--verbose"]  # Uncomment for more detailed logging
+            env:
+            - name: SODA_API_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: soda-collibra-integration-envs
+                  key: SODA_API_KEY_ID
+            - name: SODA_API_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: soda-collibra-integration-envs
+                  key: SODA_API_KEY_SECRET
+            - name: COLLIBRA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: soda-collibra-integration-envs
+                  key: COLLIBRA_USERNAME
+            - name: COLLIBRA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: soda-collibra-integration-envs
+                  key: COLLIBRA_PASSWORD
+            # Optional: Override Collibra base URL via environment
+            - name: COLLIBRA_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: soda-collibra-integration-envs
+                  key: COLLIBRA_BASE_URL
+                  optional: true
+            volumeMounts:
+            - name: config-volume
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+            resources:
+              requests:
+                memory: "512Mi"  # Increased for optimized version
+                cpu: "500m"
+              limits:
+                memory: "1Gi"    # Increased for better performance
+                cpu: "1000m"
+          volumes:
+          - name: config-volume
+            configMap:
+              name: soda-collibra-integration-config
+          restartPolicy: OnFailure 

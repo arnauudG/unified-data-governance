@@ -52,12 +52,12 @@ soda/
 
 Data source names follow the pattern: `<database_name_lowercase>_<layer>`
 
-- Database name: `DATA_GOVERNANCE_PLATFORM` (from `SNOWFLAKE_DATABASE` env var)
+- Database name: `DATA PLATFORM XYZ` (from `SNOWFLAKE_DATABASE` env var)
 - Data source names:
-  - `data_governance_platform_raw`
-  - `data_governance_platform_staging`
-  - `data_governance_platform_mart`
-  - `data_governance_platform_quality`
+  - `data_platform_xyz_raw`
+  - `data_platform_xyz_staging`
+  - `data_platform_xyz_mart`
+  - `data_platform_xyz_quality`
 
 ### Automatic Derivation
 
@@ -74,7 +74,6 @@ The Airflow DAG automatically derives data source names from the database name u
 - `just all-up` - Before starting all services
 - `just airflow-trigger-init` - Before triggering initialization
 - `just airflow-trigger-pipeline` - Before triggering pipeline
-- `just superset-upload-data` - Before uploading data to Superset
 
 **Manual Update** (if needed):
 ```bash
@@ -260,29 +259,29 @@ just airflow-trigger-pipeline
 python3 -c "from soda.helpers import get_all_data_source_names; import json; print(json.dumps(get_all_data_source_names(), indent=2))"
 ```
 
-Or use the default names (if `SNOWFLAKE_DATABASE=DATA_GOVERNANCE_PLATFORM`):
+Or use the default names (if `SNOWFLAKE_DATABASE="DATA PLATFORM XYZ"`):
 
 ```bash
 # RAW layer
-soda scan -d data_governance_platform_raw -c soda/configuration/configuration_raw.yml soda/checks/raw/
+soda scan -d data_platform_xyz_raw -c soda/configuration/configuration_raw.yml soda/checks/raw/
 
 # STAGING layer
-soda scan -d data_governance_platform_staging -c soda/configuration/configuration_staging.yml soda/checks/staging/
+soda scan -d data_platform_xyz_staging -c soda/configuration/configuration_staging.yml soda/checks/staging/
 
 # MART layer
-soda scan -d data_governance_platform_mart -c soda/configuration/configuration_mart.yml soda/checks/mart/
+soda scan -d data_platform_xyz_mart -c soda/configuration/configuration_mart.yml soda/checks/mart/
 
 # QUALITY layer
-soda scan -d data_governance_platform_quality -c soda/configuration/configuration_quality.yml soda/checks/quality/
+soda scan -d data_platform_xyz_quality -c soda/configuration/configuration_quality.yml soda/checks/quality/
 ```
 
 ### Test Individual Tables
 ```bash
 # Test specific table (replace data source name if using different database)
-soda scan -d data_governance_platform_raw -c soda/configuration/configuration_raw.yml soda/checks/raw/customers.yml
+soda scan -d data_platform_xyz_raw -c soda/configuration/configuration_raw.yml soda/checks/raw/customers.yml
 
 # Test connection
-soda test-connection -d data_governance_platform_raw -c soda/configuration/configuration_raw.yml
+soda test-connection -d data_platform_xyz_raw -c soda/configuration/configuration_raw.yml
 ```
 
 ## Soda Cloud Integration
@@ -409,3 +408,22 @@ All checks in this project have been verified to:
 6. **Governance**: Mark important datasets for Collibra sync
 7. **Documentation**: Keep checks well-documented
 8. **Testing**: Validate changes before deployment
+
+## Code Quality & Architecture
+
+### Repository Pattern
+The Soda integration uses the Repository pattern for clean API access:
+- `SodaRepository` handles all API calls
+- Automatic retry logic with exponential backoff
+- Comprehensive error handling
+- Rate limit management
+
+### Testing
+- Comprehensive test coverage for repository
+- Mock-based testing for API interactions
+- Error scenario testing
+
+---
+
+**Last Updated**: February 6, 2026  
+**Version**: 2.1.0

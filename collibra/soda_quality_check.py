@@ -4,34 +4,23 @@ Helper functions to check Soda quality check results before Collibra sync.
 
 This module queries Soda Cloud API to verify that no critical checks have failed
 before allowing metadata synchronization to proceed.
+
+Refactored to use centralized configuration and logging.
 """
 
-import os
 import sys
-import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Optional
-from dotenv import load_dotenv
+from typing import List, Dict, Optional, Any
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Add project root to path
+# Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Load environment variables explicitly for Airflow
-env_path = Path('/opt/airflow/.env')
-if env_path.exists():
-    load_dotenv(env_path, override=True)
-    logger.info(f"Loaded environment variables from {env_path}")
-elif os.getenv('COLLIBRA_BASE_URL'):
-    logger.info("Using environment variables from Docker Compose")
-else:
-    load_dotenv(override=True)
-    logger.info("Using default dotenv behavior for environment variables")
+from src.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Try to import Soda integration modules
 try:

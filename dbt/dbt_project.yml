@@ -63,9 +63,9 @@ vars:
 on-run-start: "{{ log('Starting dbt run', info=true) }}"
 on-run-end: "{{ log('Completed dbt run', info=true) }}"
 
-# Quoting configuration to handle Snowflake case sensitivity
+# Quoting configuration to handle Snowflake case sensitivity and spaces in identifiers
 quoting:
-  database: false
+  database: true  # Must be true for database names with spaces (e.g., "DATA PLATFORM XYZ")
   schema: false
   identifier: false
 

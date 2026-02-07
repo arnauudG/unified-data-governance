@@ -38,14 +38,12 @@ deps: venv
     @. {{venv}}/bin/activate && \
     echo "📌 Installing critical dependencies first..." && \
     {{uv}} pip install "protobuf>=6.30.0,<6.31.0" "pydantic>=2.5.2,<3.0.0" "pyarrow>=15.0.0,<22.0.0" && \
-    echo "📦 Installing project dependencies from requirements.txt..." && \
-    grep -v "^soda-snowflake\|^#.*soda" requirements.txt > /tmp/requirements_no_soda.txt && \
-    {{uv}} pip install -r /tmp/requirements_no_soda.txt && \
-    rm -f /tmp/requirements_no_soda.txt && \
+    echo "📦 Installing project dependencies from pyproject.toml..." && \
+    {{uv}} pip install "python-dotenv>=1.0.1" "pyyaml>=6.0" "requests>=2.31.0" "pandas>=2.2.2,<2.4" "dbt-core==1.10.11" "dbt-snowflake==1.10.2" "snowflake-connector-python>=3.17.0" "google-api-core>=2.23.0" "googleapis-common-protos>=1.66.0" "proto-plus>=1.26.0" && \
     echo "🧹 Removing conflicting soda-postgres if present..." && \
     {{uv}} pip uninstall -y soda-postgres 2>/dev/null || true && \
     echo "📦 Installing soda-snowflake from Soda Cloud PyPI..." && \
-    {{uv}} pip install -i https://pypi.cloud.soda.io "soda-snowflake==1.12.24" && \
+    {{uv}} pip install -i https://pypi.cloud.soda.io "soda-snowflake==1.12.24" || (echo "⚠️  Warning: Could not install soda-snowflake" && echo "   This may be due to:" && echo "   - Network connectivity issues" && echo "   - Private PyPI access required (check Soda Cloud credentials)" && echo "   - DNS resolution problems" && echo "   You can install it later with: uv pip install -i https://pypi.cloud.soda.io soda-snowflake==1.12.24") && \
     echo "🔧 Ensuring critical dependencies remain at correct versions..." && \
     {{uv}} pip install --upgrade "protobuf>=6.30.0,<6.31.0" "pydantic>=2.5.2,<3.0.0" "pyarrow>=15.0.0,<22.0.0" && \
     {{uv}} pip install --upgrade "google-api-core>=2.23.0" "googleapis-common-protos>=1.66.0" "proto-plus>=1.26.0" || true && \
@@ -53,10 +51,16 @@ deps: venv
     @echo "ℹ️  Note: This project uses Snowflake, not PostgreSQL for Soda checks."
     @echo "   Removed soda-postgres to avoid version conflicts."
     @echo "⚠️  Some dependency warnings may appear for transitive dependencies"
-    @echo "   (mlflow, anyscale, great-expectations, fastapi) but these are not"
+    @echo "   (mlflow, anyscale, fastapi) but these are not"
     @echo "   directly used and should not affect functionality."
+    @echo "ℹ️  Note: If you see a warning about proto_plus RECORD file,"
+    @echo "   this is harmless and can be safely ignored."
 
 # Complete environment setup
+# Note: This is idempotent - safe to run multiple times
+#       However, 'just airflow-up' automatically runs setup, so you typically
+#       don't need to run 'just setup' separately unless you want to setup
+#       without starting Airflow.
 setup: venv deps
     @echo "🔧 Setting up environment..."
     @if [ ! -f .env ]; then \
@@ -73,26 +77,32 @@ setup: venv deps
         echo "✅ .env file found"; \
     fi
     @echo "🔄 Updating Soda data source names to match database configuration..."
-    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
+    @echo "ℹ️  (Note: Any proto_plus RECORD warnings are harmless)"
+    @if [ -f ".venv/bin/activate" ]; then \
+        . .venv/bin/activate && {{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"; \
+    else \
+        echo "⚠️  Warning: Virtual environment not found. Run 'just deps' first."; \
+    fi
     @echo "[OK] Environment setup completed"
     @echo "[INFO] Next steps:"
     @echo "  1. Ensure .env file has all required credentials"
-    @echo "  2. Run: just airflow-up"
+    @echo "  2. Run: just airflow-up  (this will automatically run setup if needed)"
     @echo "  3. Run: just airflow-trigger-init (first time setup)"
-    @echo "  4. Access Airflow UI: http://localhost:8080"
+    @echo "  4. Access Airflow UI: http://localhost:8081"
     @echo ""
+    @echo "💡 Tip: Just run 'just airflow-up' - it handles setup automatically!"
     @echo "💡 Using uv: Run commands with 'uv run' (no activation needed)"
     @echo "   Example: uv run python3 soda/update_data_source_names.py"
 
 # Start Airflow services with Docker
-airflow-up:
+# Note: If you run 'just setup' first, this will skip re-running setup automatically
+#       You can also just run 'just airflow-up' alone - it will run setup automatically
+airflow-up: setup
     @echo "🚀 Starting Airflow services..."
     @echo "🌐 Ensuring shared Docker network exists..."
     @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
-    @echo "🔄 Updating Soda data source names to match database configuration..."
-    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
     @echo "📥 Loading environment variables and starting Docker containers..."
-    @cd airflow/docker && docker-compose up -d
+    @cd airflow/docker && docker-compose --env-file ../../.env up -d
     @echo "⏳ Waiting for services to be ready..."
     @sleep 30
     @echo "▶️  Unpausing all Soda DAGs..."
@@ -101,49 +111,33 @@ airflow-up:
     @docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_raw || true
     @docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_mart || true
     @echo "[OK] Airflow services started with Docker"
-    @echo "[INFO] Web UI: http://localhost:8080 (admin/admin)"
+    @echo "[INFO] Web UI: http://localhost:8081 (admin/admin)"
     @echo "[INFO] Available DAGs:"
     @just airflow-list
 
-# Start Superset visualization service
-superset-up:
-    @echo "📊 Starting Superset services..."
-    @echo "🌐 Ensuring shared Docker network exists..."
-    @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
-    @echo "📥 Loading environment variables and starting Docker containers..."
-    @cd superset && docker-compose up -d
-    @echo "⏳ Waiting for Superset to be ready..."
-    @sleep 45
-    @echo "[OK] Superset started with Docker"
-    @echo "[INFO] Superset UI: http://localhost:8089 (admin/admin)"
-
-# Start all services (Airflow + Superset)
-all-up:
+# Start all services (Airflow)
+# Start all services (automatically runs setup first)
+all-up: setup
     @echo "🚀 Starting all services..."
     @echo "🌐 Ensuring shared Docker network exists..."
     @docker network create data-governance-network 2>/dev/null || echo "Network already exists"
-    @echo "🔄 Updating Soda data source names to match database configuration..."
-    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names (this is OK if running in Docker)"
     @echo "📥 Loading environment variables and starting Docker containers..."
-    @cd airflow/docker && docker-compose up -d && cd ../../superset && docker-compose up -d
+    @cd airflow/docker && docker-compose --env-file ../../.env up -d
     @echo "⏳ Waiting for services to be ready..."
-    @sleep 45
+    @sleep 30
     @echo "▶️  Unpausing all Soda DAGs..."
     @docker exec soda-airflow-webserver airflow dags unpause soda_initialization || true
     @docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run || true
     @docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_raw || true
     @docker exec soda-airflow-webserver airflow dags unpause soda_pipeline_run_strict_mart || true
     @echo "[OK] All services started with Docker"
-    @echo "[INFO] Airflow UI: http://localhost:8080 (admin/admin)"
-    @echo "[INFO] Superset UI: http://localhost:8089 (admin/admin)"
+    @echo "[INFO] Airflow UI: http://localhost:8081 (admin/admin)"
 
-# Stop all services (Airflow + Superset)
+# Stop all services (Airflow)
 all-down:
     @echo "🛑 Stopping all services..."
     @echo "🔄 Stopping Airflow services..."
     @cd airflow/docker && docker-compose down
-    @echo "🔄 Stopping Superset services..."
-    @cd superset && docker-compose down
     @echo "[OK] All services stopped"
 
 # Stop Airflow services
@@ -151,29 +145,6 @@ airflow-down:
     @cd airflow/docker && docker-compose down
     @echo "[OK] Airflow services stopped"
 
-# Stop Superset services
-superset-down:
-    @cd superset && docker-compose down
-    @echo "[OK] Superset services stopped"
-
-# Check Superset services status
-superset-status:
-    @echo "🔍 Checking Superset services..."
-    @cd superset && docker-compose ps
-
-# View Superset logs
-superset-logs:
-    @cd superset && docker-compose logs -f superset
-
-# Reset Superset database and restart
-superset-reset:
-    @echo "🔄 Resetting Superset..."
-    @cd superset && docker-compose down
-    @cd superset && docker volume rm superset_superset-postgres-data superset_superset-data 2>/dev/null || true
-    @cd superset && docker-compose up -d
-    @echo "⏳ Waiting for Superset to be ready..."
-    @sleep 45
-    @echo "[OK] Superset reset and restarted"
 
 # Check Airflow services status
 airflow-status:
@@ -188,10 +159,9 @@ airflow-logs:
 airflow-task-logs task dag:
     @if [ -z "{{task}}" ] || [ -z "{{dag}}" ]; then \
         echo "Usage: just airflow-task-logs <task_id> <dag_id>"; \
-        echo "Example: just airflow-task-logs superset_upload_data soda_pipeline_run"; \
+        echo "Example: just airflow-task-logs soda_scan_raw soda_pipeline_run"; \
         echo ""; \
         echo "Finding latest task logs..."; \
-        docker exec soda-airflow-scheduler find /opt/airflow/logs -name "*.log" -type f -path "*superset_upload_data*" -exec ls -lt {} + 2>/dev/null | head -5 || \
         docker exec soda-airflow-scheduler find /opt/airflow/logs -name "*.log" -type f | head -10; \
     else \
         echo "📋 Finding latest logs for task {{task}} in DAG {{dag}}..."; \
@@ -239,7 +209,7 @@ airflow-trigger-init:
     @echo "🚀 Triggering initialization DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_initialization
     @echo "[OK] Initialization DAG triggered"
-    @echo "[INFO] Check progress at: http://localhost:8080"
+    @echo "[INFO] Check progress at: http://localhost:8081"
 
 # Trigger layered pipeline DAG (layer-by-layer processing)
 airflow-trigger-pipeline:
@@ -248,7 +218,7 @@ airflow-trigger-pipeline:
     @echo "🔄 Triggering layered pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run
     @echo "[OK] Layered pipeline DAG triggered"
-    @echo "[INFO] Check progress at: http://localhost:8080"
+    @echo "[INFO] Check progress at: http://localhost:8081"
 
 # Trigger pipeline with strict RAW layer guardrails
 airflow-trigger-pipeline-strict-raw:
@@ -257,7 +227,7 @@ airflow-trigger-pipeline-strict-raw:
     @echo "🔄 Triggering strict RAW pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_raw
     @echo "[OK] Strict RAW pipeline DAG triggered"
-    @echo "[INFO] Check progress at: http://localhost:8080"
+    @echo "[INFO] Check progress at: http://localhost:8081"
     @echo "[INFO] This pipeline will FAIL if RAW layer critical checks fail"
 
 # Trigger pipeline with strict MART layer guardrails
@@ -267,14 +237,8 @@ airflow-trigger-pipeline-strict-mart:
     @echo "🔄 Triggering strict MART pipeline DAG..."
     @docker exec soda-airflow-webserver airflow dags trigger soda_pipeline_run_strict_mart
     @echo "[OK] Strict MART pipeline DAG triggered"
-    @echo "[INFO] Check progress at: http://localhost:8080"
+    @echo "[INFO] Check progress at: http://localhost:8081"
     @echo "[INFO] This pipeline will FAIL if MART layer critical checks fail"
-
-# Extract Soda Cloud data to CSV files
-soda-dump:
-    @echo "📊 Extracting Soda Cloud data..."
-    @./scripts/run_soda_dump.sh
-    @echo "[OK] Soda Cloud data extracted to CSV files"
 
 # List available DAGs
 airflow-list:
@@ -287,46 +251,6 @@ soda-update-datasources:
     @{{uv}} run python3 soda/update_data_source_names.py
     @echo "[OK] Data source names updated"
 
-# Organize Soda dump data in user-friendly structure
-organize-soda-data:
-    @echo "📁 Organizing Soda dump data..."
-    @python3 scripts/organize_soda_data.py
-    @echo "✅ Data organized successfully!"
-
-# Complete Soda workflow: dump + organize + upload to Superset
-superset-upload-data:
-    @echo "📤 Complete Soda data workflow..."
-    @echo "🔄 Ensuring Soda data source names are up to date..."
-    @{{uv}} run python3 soda/update_data_source_names.py || echo "⚠️  Warning: Could not update data source names"
-    @echo "1. Extracting data from Soda Cloud..."
-    @just soda-dump
-    @echo "2. Organizing data..."
-    @just organize-soda-data
-    @echo "3. Uploading to Superset..."
-    @cp scripts/upload_soda_data_docker.py superset/data/
-    @cd superset && docker-compose exec superset python /app/soda_data/upload_soda_data_docker.py
-    @echo "✅ Complete Soda data workflow finished!"
-
-# Clean restart Superset (removes all data)
-superset-clean-restart:
-    @echo "🧹 Performing clean Superset restart..."
-    @just superset-down
-    @cd superset && docker-compose down -v
-    @echo "🗑️  Removed all Superset data and volumes"
-    @just superset-up
-    @echo "✅ Superset clean restart completed!"
-
-# Reset only Superset data (keep containers)
-superset-reset-data:
-    @echo "🔄 Resetting Superset data..."
-    @cd superset && docker-compose exec superset-db psql -U superset -d superset -c "DROP SCHEMA IF EXISTS soda CASCADE;"
-    @echo "✅ Superset data reset completed!"
-
-# Reset only the soda schema (fixes table structure issues)
-superset-reset-schema:
-    @echo "🔄 Resetting soda schema..."
-    @cd superset && docker-compose exec superset-db psql -U superset -d superset -c "DROP SCHEMA IF EXISTS soda CASCADE;"
-    @echo "✅ Soda schema reset complete"
 
 # Test Collibra metadata sync module
 test-collibra:
@@ -353,26 +277,127 @@ clean-all: clean clean-logs
     @find . -name "*.pyc" -delete 2>/dev/null || true
     @find . -name ".DS_Store" -delete 2>/dev/null || true
 
-# Dump all databases (Superset, Airflow, Soda data)
-dump-databases:
-    @echo "🗄️  Dumping all databases..."
-    @./scripts/dump_databases.sh --all
-    @echo "[OK] All databases dumped"
-
-# Dump Superset database only
-dump-superset:
-    @echo "📊 Dumping Superset database..."
-    @./scripts/dump_databases.sh --superset-only
-    @echo "[OK] Superset database dumped"
-
 # Dump Airflow database only
 dump-airflow:
     @echo "🔄 Dumping Airflow database..."
     @./scripts/dump_databases.sh --airflow-only
     @echo "[OK] Airflow database dumped"
 
-# Dump Soda data only
-dump-soda:
-    @echo "📈 Dumping Soda data..."
-    @./scripts/dump_databases.sh --soda-only
-    @echo "[OK] Soda data dumped"
+# Run health checks
+health-check:
+    @echo "🏥 Running platform health checks..."
+    @{{uv}} run python3 scripts/health_check.py
+
+# Run all tests
+test:
+    @echo "🧪 Running all tests..."
+    @{{uv}} run pytest tests/ -v
+
+# Run unit tests only
+test-unit:
+    @echo "🧪 Running unit tests..."
+    @{{uv}} run pytest tests/unit/ -v
+
+# Run integration tests only
+test-integration:
+    @echo "🧪 Running integration tests..."
+    @{{uv}} run pytest tests/integration/ -v
+
+# Run tests with coverage report
+test-coverage:
+    @echo "🧪 Running tests with coverage..."
+    @{{uv}} run pytest tests/ --cov=src --cov-report=html --cov-report=term
+    @echo "📊 Coverage report: htmlcov/index.html"
+
+# Run type checking
+type-check:
+    @echo "🔍 Running type checking..."
+    @{{uv}} run mypy src --config-file pyproject.toml
+
+# Run linting with Ruff
+lint:
+    @echo "🔍 Running Ruff linter..."
+    @{{uv}} run ruff check src scripts tests
+
+# Format code with Black
+format:
+    @echo "🎨 Formatting code with Black..."
+    @{{uv}} run black src scripts tests
+
+# Check security vulnerabilities
+security-check:
+    @echo "🔒 Checking for security vulnerabilities..."
+    @{{uv}} run safety check
+
+# Run all quality checks
+quality-check: type-check lint test-coverage
+    @echo "✅ All quality checks passed!"
+
+# Generate Sphinx documentation
+docs-build:
+    @echo "📚 Building documentation..."
+    @cd docs && {{uv}} run sphinx-build -b html . _build/html
+    @echo "📚 Documentation built: docs/_build/html/index.html"
+
+# Serve documentation locally
+docs-serve:
+    @echo "📚 Serving documentation..."
+    @cd docs/_build/html && python3 -m http.server 8000
+    @echo "📚 Documentation available at: http://localhost:8000"
+
+# Install pre-commit hooks
+pre-commit-install:
+    @echo "🔧 Installing pre-commit hooks..."
+    @{{uv}} run pip install pre-commit
+    @{{uv}} run pre-commit install
+    @echo "✅ Pre-commit hooks installed"
+
+# Run pre-commit hooks on all files
+pre-commit-run:
+    @echo "🔍 Running pre-commit hooks..."
+    @{{uv}} run pre-commit run --all-files
+
+# Update pre-commit hooks
+pre-commit-update:
+    @echo "🔄 Updating pre-commit hooks..."
+    @{{uv}} run pre-commit autoupdate
+
+# CI/CD simulation (run all checks locally)
+ci-local:
+    @echo "🚀 Running CI checks locally..."
+    @echo "1. Type checking..."
+    @just type-check
+    @echo "2. Linting..."
+    @just lint
+    @echo "3. Formatting check..."
+    @{{uv}} run black --check src scripts tests || echo "⚠️  Formatting issues found. Run 'just format' to fix."
+    @echo "4. Security check..."
+    @just security-check
+    @echo "5. Running tests..."
+    @just test-coverage
+    @echo "✅ All CI checks completed!"
+
+# Test Snowflake connection
+test-snowflake:
+    @echo "🔍 Testing Snowflake connection..."
+    @{{uv}} run python3 scripts/setup/setup_snowflake.py --test-only
+
+# Setup Snowflake infrastructure
+setup-snowflake:
+    @echo "🏗️  Setting up Snowflake infrastructure..."
+    @{{uv}} run python3 scripts/setup/setup_snowflake.py
+
+# Setup Snowflake with reset
+setup-snowflake-reset:
+    @echo "🏗️  Resetting and setting up Snowflake infrastructure..."
+    @{{uv}} run python3 scripts/setup/setup_snowflake.py --reset
+
+# Test entire platform stack
+test-stack:
+    @echo "🧪 Testing entire platform stack..."
+    @{{uv}} run python3 scripts/test_stack.py --component all
+
+# Test specific component
+test-stack-component COMPONENT:
+    @echo "🧪 Testing component: {{COMPONENT}}..."
+    @{{uv}} run python3 scripts/test_stack.py --component {{COMPONENT}}

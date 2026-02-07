@@ -1,5 +1,5 @@
 # Soda Configuration for RAW Layer
-# Database: ${SNOWFLAKE_DATABASE} (default: DATA_GOVERNANCE_PLATFORM), Schema: RAW
+# Database: ${SNOWFLAKE_DATABASE} (default: DATA PLATFORM XYZ), Schema: RAW
 # Purpose: Data quality monitoring for raw, unprocessed data
 # Note: Data source name is derived from database name (lowercase + _raw)
 #       Use soda/generate_config.py to regenerate configs if database name changes

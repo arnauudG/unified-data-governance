@@ -1,0 +1,71 @@
+# Soda Cloud Integration
+soda:
+  ## Soda Cloud Configuration
+  host: ${SODA_CLOUD_HOST}
+  api_key_id: ${SODA_CLOUD_API_KEY_ID}
+  api_key_secret: ${SODA_CLOUD_API_KEY_SECRET}
+  base_url: "https://cloud.soda.io/api/v1"
+
+  ## General Settings
+  general:
+    filter_datasets_to_sync_to_collibra: true  # Only sync datasets with sync attribute
+    soda_no_collibra_dataset_skip_checks: true # Skip checks if dataset not in Collibra
+
+  ## Attributes
+  attributes:
+    soda_collibra_sync_dataset_attribute: "push_to_collibra_dic"  # Attribute to mark datasets for sync
+    soda_collibra_domain_dataset_attribute_name: ''  # Attribute for domain mapping
+    soda_dimension_attribute_name: "dimension"  # Attribute for DQ dimension
+    sync_monitors: false
+    custom_attributes_mapping_soda_attribute_name_to_collibra_attribute_type_id: '{"threshold": "00000000-0000-0000-0000-000000000239"}'  # Map threshold to Collibra attribute type ID (replace with actual UUID)
+
+# Collibra Integration
+collibra:
+  ## Collibra Authentication
+  base_url: ${COLLIBRA_BASE_URL}  
+  username: ${COLLIBRA_USERNAME}
+  password: ${COLLIBRA_PASSWORD}
+  ## General Settings
+  general:
+    naming_delimiter: ">"  # Used to separate parts of asset names
+
+  ## Asset types
+  asset_types:
+    ## Asset types
+    table_asset_type: "00000000-0000-0000-0000-000000031007"  # ID for Table assets
+    soda_check_asset_type: "019bc74a-825d-716f-a9d9-a9e3dd20d111"  # ID for Data Quality Metric type
+    dimension_asset_type: "00000000-0000-0000-0000-000000031108"  # ID for Data Quality Dimension type
+    column_asset_type: "00000000-0000-0000-0000-000000031008"  # ID for Column type
+  
+  ## Attribute types
+  attribute_types:
+    ## Standard Check Attributes
+    check_evaluation_status_attribute: "00000000-0000-0000-0000-000000000238"  # Boolean attribute for pass/fail
+    check_last_sync_date_attribute: "00000000-0000-0000-0000-000000000256"  # Last sync timestamp
+    check_definition_attribute: "00000000-0000-0000-0000-000000003114"  # Check definition
+    check_last_run_date_attribute: "00000000-0000-0000-0000-090000010004"  # Last run timestamp
+    check_cloud_url_attribute: "019bc767-dbd3-7c08-a97e-36612e09ee25"  # Link to Soda Cloud
+    ## Diagnostic Metric Attributes - Extracted from Soda check diagnostics
+    check_loaded_rows_attribute: "00000000-0000-0000-0000-000000000233"      # Number of rows tested/loaded
+    check_rows_failed_attribute: "00000000-0000-0000-0000-000000000237"      # Number of rows that failed
+    check_rows_passed_attribute: "00000000-0000-0000-0000-000000000236"      # Number of rows that passed (calculated)
+    check_passing_fraction_attribute: "00000000-0000-0000-0000-000000000240" # Fraction of rows passing (calculated)
+    collira_row_count_attribute: "00000000-0000-0000-0001-000500000034"      # Row count attribute
+
+  ## Relation types
+  relation_types:
+    ## Relation types
+    table_column_to_check_relation_type: "00000000-0000-0000-0000-000000007018"  # Relation between table/column and check
+    check_to_dq_dimension_relation_type: "b3688c5f-145a-423f-a511-16d355616d47"  # Relation between check and dimension
+
+  ## Responsibilities
+  responsibilities:
+    ## Responsibilities
+    owner_role_id: "00000000-0000-0000-0000-000000005040"  # Collibra role ID for asset owners
+
+  ## Domains
+  domains:
+    ## Domains
+    data_quality_dimensions_domain: "00000000-0000-0000-0000-000000006019"  # Domain for DQ dimensions
+    soda_collibra_domain_mapping: ''  # Dataset to domain mapping
+    soda_collibra_default_domain: "019bc2dc-3d5a-788e-9742-ff8147685948"  # Default domain if no mapping

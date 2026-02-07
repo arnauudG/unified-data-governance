@@ -60,7 +60,7 @@ The `macros/get_custom_schema.sql` macro overrides dbt's default schema behavior
 ### Project Configuration (`dbt_project.yml`)
 ```yaml
 models:
-  data_governance_platform:
+  data_platform_xyz:
     staging:
       +materialized: table
       +schema: "STAGING"
@@ -75,20 +75,31 @@ models:
       +meta:
         owner: "data-team"
         layer: "mart"
+
+# Quoting configuration to handle Snowflake case sensitivity and spaces in identifiers
+quoting:
+  database: true  # Must be true for database names with spaces (e.g., "DATA PLATFORM XYZ")
+  schema: false
+  identifier: false
 ```
+
+**Important**: The `database: true` setting in the quoting configuration is **required** when using database names with spaces (like "DATA PLATFORM XYZ"). This ensures dbt properly quotes the database name in all SQL statements, preventing syntax errors.
 
 ### Profile Configuration (`profiles.yml`)
 ```yaml
-data_governance_platform:
+data_platform_xyz:
   target: dev
   outputs:
     dev:
       type: snowflake
-      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA_GOVERNANCE_PLATFORM') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA PLATFORM XYZ') }}"
       warehouse: "COMPUTE_WH"
       schema: "PUBLIC"
       quote_identifiers: true
 ```
+
+### Source Configuration (`models/raw/sources.yml`)
+The raw source uses `SNOWFLAKE_DATABASE` (default: `DATA PLATFORM XYZ`) and has `quoting.database: true` so that database names with spaces are quoted correctly in compiled SQL.
 
 ## Usage
 
@@ -194,6 +205,11 @@ dbt test --select test_data_quality --target dev --profiles-dir .
 - **Issue**: Models can't find referenced tables
 - **Solution**: Ensure staging models run before mart models
 
+#### Database Name with Spaces
+- **Issue**: SQL compilation error like `syntax error line 1 at position 36 unexpected 'PLATFORM'` when database name contains spaces
+- **Solution**: Ensure `quoting.database: true` is set in `dbt_project.yml` to properly quote database names with spaces
+- **Example**: Database name "DATA PLATFORM XYZ" requires quoting configuration to work correctly
+
 ### Debug Commands
 ```bash
 # Parse project
@@ -231,8 +247,21 @@ The project includes lineage metadata configuration:
 - **Performance**: Optimized materialization strategies
 - **Integration**: Seamless integration with quality and governance systems
 
+## Code Quality & Architecture
+
+### Integration with Platform
+- Uses centralized configuration (`src/core/config.py`)
+- Integrated with quality service layer
+- Metadata sync via `MetadataService`
+- Health checks available
+
+### Testing
+- dbt tests for data quality
+- Integration with Soda quality checks
+- Quality-gated metadata sync
+
 ---
 
-**Last Updated**: January 2025  
-**Version**: 2.0.0  
+**Last Updated**: February 6, 2026  
+**Version**: 2.1.0  
 **dbt Version**: 1.10.11

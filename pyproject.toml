@@ -22,12 +22,16 @@ dependencies = [
     # Critical dependency pins to avoid conflicts
     "protobuf>=6.30.0,<6.31.0",
     "pydantic>=2.5.2,<3.0.0",
+    "pydantic-settings>=2.1.0",
     "google-api-core>=2.23.0",
     "googleapis-common-protos>=1.66.0",
     "proto-plus>=1.26.0",
     
     # Snowflake
     "snowflake-connector-python>=3.17.0",
+    
+    # PostgreSQL connector
+    "psycopg2-binary>=2.9.0",
     
     # Soda (installed from private PyPI)
     # Note: soda-snowflake must be installed separately:
@@ -49,11 +53,118 @@ airflow = [
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
     "ipython>=9.0.0",
     "jupyter>=1.0.0",
+    "mypy>=1.8.0",
+    "types-requests>=2.31.0",
+    "types-PyYAML>=6.0.0",
+    "ruff>=0.1.0",
+    "black>=23.12.0",
+    "safety>=2.3.0",
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
 ]
 
 [tool.uv.sources]
 # Soda packages from private PyPI
 # Note: These must be installed manually with:
 # uv pip install -i https://pypi.cloud.soda.io soda-snowflake==1.12.24
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "soda.*",
+    "dbt.*",
+    "airflow.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "src.core.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+# Ruff configuration (fast Python linter)
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    "dbt",
+    "airflow",
+    "soda",
+    "collibra",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+force-single-line = false
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+# Black configuration (code formatter)
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | \.eggs
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | dbt
+  | airflow
+  | soda
+  | collibra
+)/
+'''
+
+# Safety configuration (security vulnerability scanning)
+[tool.safety]
+# Safety checks dependencies for known security vulnerabilities
+# Run with: safety check

@@ -8,7 +8,7 @@ data_governance_platform:
       authenticator: snowflake
       password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
-      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA_GOVERNANCE_PLATFORM') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DATA PLATFORM XYZ') }}"
       warehouse: "COMPUTE_WH"
       schema: "PUBLIC"
       threads: 4
